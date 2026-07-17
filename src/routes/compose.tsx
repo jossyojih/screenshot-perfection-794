@@ -187,6 +187,7 @@ function ComposePage() {
           </div>
         </section>
       </div>
+    </AppShell>
   );
 }
 
