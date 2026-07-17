@@ -31,7 +31,13 @@ export function AppShell({
 
         <div className="flex-1 overflow-y-auto pb-44">{children}</div>
 
-        {bottomBar === false ? null : bottomBar ?? <BottomBar pathname={pathname} />}
+        {bottomBar === false ? null : bottomBar ? (
+          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[440px]">
+            {bottomBar}
+          </div>
+        ) : (
+          <BottomBar pathname={pathname} />
+        )}
       </div>
     </div>
   );
