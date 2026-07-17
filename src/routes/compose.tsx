@@ -52,6 +52,17 @@ function ComposePage() {
           Cancel
         </Link>
       }
+      bottomBar={
+        <div className="p-4 border-t border-edge bg-surface/80 backdrop-blur-md">
+          <button
+            onClick={dispatch}
+            disabled={instruction.trim().length === 0}
+            className="w-full h-12 rounded-full bg-glow text-void font-mono text-xs font-bold tracking-widest uppercase shadow-[var(--shadow-glow)] disabled:bg-edge disabled:text-muted disabled:shadow-none transition-all"
+          >
+            Dispatch to {project?.name}
+          </button>
+        </div>
+      }
     >
       <div className="px-4 py-4 space-y-6">
         {/* Project selector */}
