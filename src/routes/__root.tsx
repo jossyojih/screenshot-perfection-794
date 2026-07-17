@@ -78,20 +78,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "theme-color", content: "#0A0A0B" },
-      { title: "Command Center — Remote AI Coding Agents" },
+      { title: "Feed — Command Center" },
       {
         name: "description",
         content:
-          "A pocket mission-control for directing remote AI coding agents. Assign tasks, resolve blockers, and review results from your phone.",
+          "Active threads and recent projects. Direct your remote coding agents at a glance.",
       },
-      { property: "og:title", content: "Command Center — Remote AI Coding Agents" },
+      { property: "og:title", content: "Feed — Command Center" },
       {
         property: "og:description",
         content:
-          "Direct Codex or Claude Code from anywhere. Assign work, unblock the agent, review results.",
+          "Active threads and recent projects. Direct your remote coding agents at a glance.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Feed — Command Center" },
+      { name: "twitter:description", content: "Active threads and recent projects. Direct your remote coding agents at a glance." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4d108f61-65c1-4076-a22e-4a4be65d3684/id-preview-47efb625--3a998c02-a7e9-4ee9-ba05-847254a24e8b.lovable.app-1784325537168.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4d108f61-65c1-4076-a22e-4a4be65d3684/id-preview-47efb625--3a998c02-a7e9-4ee9-ba05-847254a24e8b.lovable.app-1784325537168.png" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
