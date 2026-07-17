@@ -187,18 +187,6 @@ function ComposePage() {
           </div>
         </section>
       </div>
-
-      {/* Dispatch bar sits above the shared bottom bar via z-index */}
-      <div className="fixed bottom-[104px] left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4">
-        <button
-          onClick={dispatch}
-          disabled={instruction.trim().length === 0}
-          className="w-full h-12 rounded-full bg-glow text-void font-mono text-xs font-bold tracking-widest uppercase shadow-[var(--shadow-glow)] disabled:bg-edge disabled:text-muted disabled:shadow-none transition-all"
-        >
-          Dispatch to {project?.name}
-        </button>
-      </div>
-    </AppShell>
   );
 }
 
