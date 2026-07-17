@@ -67,7 +67,7 @@ function ProjectDetail() {
               Repositories
             </div>
             <ul className="space-y-1">
-              {project.repos.map((r) => (
+              {project.repos.map((r: string) => (
                 <li key={r} className="font-mono text-sm">
                   <span className="text-muted">›</span> {r}
                 </li>
