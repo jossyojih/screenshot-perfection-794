@@ -5,10 +5,12 @@ export function AppShell({
   children,
   headerRight,
   title = "Command_Center",
+  bottomBar,
 }: {
   children: ReactNode;
   headerRight?: ReactNode;
   title?: string;
+  bottomBar?: ReactNode | false;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -27,9 +29,9 @@ export function AppShell({
           )}
         </header>
 
-        <div className="flex-1 overflow-y-auto pb-32">{children}</div>
+        <div className="flex-1 overflow-y-auto pb-44">{children}</div>
 
-        <BottomBar pathname={pathname} />
+        {bottomBar === false ? null : bottomBar ?? <BottomBar pathname={pathname} />}
       </div>
     </div>
   );
