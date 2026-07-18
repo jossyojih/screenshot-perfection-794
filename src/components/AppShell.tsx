@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "./ThemeToggle";
+import { NotificationBell } from "./NotificationBell";
 
 export function AppShell({
   children,
@@ -25,9 +26,7 @@ export function AppShell({
           </Link>
           {headerRight ?? (
             <div className="flex items-center gap-2">
-              <div className="px-2 py-0.5 rounded border border-glow/30 bg-glow-soft">
-                <span className="text-[10px] font-mono text-glow uppercase">2 Live</span>
-              </div>
+              <NotificationBell />
               <ThemeToggle />
             </div>
           )}
