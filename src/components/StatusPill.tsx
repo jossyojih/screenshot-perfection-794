@@ -3,17 +3,23 @@ import type { ThreadStatus } from "@/lib/mock-data";
 const label: Record<ThreadStatus, string> = {
   running: "RUNNING",
   needs_input: "NEEDS INPUT",
+  failed: "FAILED",
   done: "DONE",
 };
 
+const colorClass: Record<ThreadStatus, string> = {
+  running: "text-glow",
+  needs_input: "text-alert",
+  failed: "text-danger",
+  done: "text-muted",
+};
+
 export function StatusPill({ status }: { status: ThreadStatus }) {
-  const cls =
-    status === "running"
-      ? "text-glow"
-      : status === "needs_input"
-        ? "text-alert"
-        : "text-muted";
-  return <span className={`text-[10px] font-mono tracking-wider ${cls}`}>{label[status]}</span>;
+  return (
+    <span className={`text-[10px] font-mono tracking-wider ${colorClass[status]}`}>
+      {label[status]}
+    </span>
+  );
 }
 
 export function StatusDot({ status }: { status: ThreadStatus }) {
@@ -31,6 +37,15 @@ export function StatusDot({ status }: { status: ThreadStatus }) {
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-alert opacity-70" />
         <span className="relative inline-flex size-2 rounded-full bg-alert" />
       </span>
+    );
+  }
+  if (status === "failed") {
+    // Distinct: square, no pulse, danger red with hard shadow
+    return (
+      <span
+        className="inline-flex size-2 rotate-45 bg-danger shadow-[var(--shadow-danger)]"
+        aria-label="failed"
+      />
     );
   }
   return <span className="inline-flex size-2 rounded-full bg-muted/60" />;
