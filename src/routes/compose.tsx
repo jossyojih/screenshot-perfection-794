@@ -1,16 +1,21 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { projects, threads, contextFiles, projectById } from "@/lib/mock-data";
+import {
+  AGENTS,
+  MODELS_BY_AGENT,
+  contextFiles,
+  projectById,
+  projects,
+  threads,
+} from "@/lib/mock-data";
+import type { AgentName } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/compose")({
   head: () => ({
     meta: [
       { title: "Send Task — Command Center" },
-      {
-        name: "description",
-        content: "Compose a new instruction for a remote coding agent.",
-      },
+      { name: "description", content: "Compose a new instruction for a remote coding agent." },
     ],
   }),
   component: ComposePage,
@@ -24,6 +29,17 @@ function ComposePage() {
   const [attached, setAttached] = useState<string[]>([]);
 
   const project = projectById(projectId);
+
+  const [agent, setAgent] = useState<AgentName>(project?.defaultAgent ?? "Codex");
+  const [model, setModel] = useState<string>(project?.defaultModel ?? "GPT-5.1");
+
+  // Re-sync when project changes
+  useEffect(() => {
+    if (!project) return;
+    setAgent(project.defaultAgent);
+    setModel(project.defaultModel);
+  }, [projectId, project]);
+
   const projectThreads = useMemo(
     () => threads.filter((t) => t.projectId === projectId),
     [projectId],
@@ -35,11 +51,13 @@ function ComposePage() {
   };
 
   const dispatch = () => {
-    // Prototype: jump to a running thread to simulate the send.
     const target = projectThreads.find((t) => t.status === "running") ?? projectThreads[0];
     if (target) navigate({ to: "/threads/$threadId", params: { threadId: target.id } });
     else navigate({ to: "/" });
   };
+
+  const overriding =
+    project && (agent !== project.defaultAgent || model !== project.defaultModel);
 
   return (
     <AppShell
@@ -65,7 +83,7 @@ function ComposePage() {
       }
     >
       <div className="px-4 py-4 space-y-6">
-        {/* Project selector */}
+        {/* Project */}
         <section>
           <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest mb-2">
             Project
@@ -94,7 +112,7 @@ function ComposePage() {
           </div>
         </section>
 
-        {/* Thread selector */}
+        {/* Thread */}
         <section>
           <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest mb-2">
             Thread
@@ -133,6 +151,61 @@ function ComposePage() {
               );
             })}
           </div>
+        </section>
+
+        {/* Agent + Model */}
+        <section>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest">
+              Runtime
+            </h2>
+            {overriding && (
+              <span className="text-[10px] font-mono text-alert uppercase tracking-widest">
+                Overriding default
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="p-3 rounded-lg border border-edge bg-surface">
+              <div className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">
+                Agent
+              </div>
+              <select
+                value={agent}
+                onChange={(e) => {
+                  const next = e.target.value as AgentName;
+                  setAgent(next);
+                  setModel(MODELS_BY_AGENT[next][0]);
+                }}
+                className="w-full bg-transparent text-xs font-mono focus:outline-none"
+              >
+                {AGENTS.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="p-3 rounded-lg border border-edge bg-surface">
+              <div className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">
+                Model
+              </div>
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="w-full bg-transparent text-xs font-mono focus:outline-none"
+              >
+                {MODELS_BY_AGENT[agent].map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <p className="text-[10px] text-muted font-mono mt-2">
+            Default: {project?.defaultAgent} · {project?.defaultModel}
+          </p>
         </section>
 
         {/* Instruction */}

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
 import { projects, threads, projectById } from "@/lib/mock-data";
+import type { Thread } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -9,7 +10,7 @@ export const Route = createFileRoute("/")({
       { title: "Feed — Command Center" },
       {
         name: "description",
-        content: "Active threads and recent projects. Direct your remote coding agents at a glance.",
+        content: "Action-required threads and recent project status for your remote coding agents.",
       },
     ],
   }),
@@ -17,14 +18,34 @@ export const Route = createFileRoute("/")({
 });
 
 function FeedPage() {
-  const needsInput = threads.filter((t) => t.status === "needs_input");
+  const blocked = threads.filter((t) => t.status === "needs_input" || t.status === "failed");
   const running = threads.filter((t) => t.status === "running");
   const done = threads.filter((t) => t.status === "done");
 
   return (
     <AppShell>
       <div className="px-4 py-4 space-y-6">
-        {/* Projects strip */}
+        {/* Action Required — needs_input + failed */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest">
+              Action_Required
+            </h2>
+            <span className="text-[10px] font-mono text-muted">{blocked.length} blocked</span>
+          </div>
+          {blocked.length === 0 && (
+            <div className="p-4 rounded-xl border border-dashed border-edge text-center text-xs text-muted">
+              All clear. No agents waiting on you.
+            </div>
+          )}
+          <div className="space-y-3">
+            {blocked.map((t) => (
+              <BlockedCard key={t.id} thread={t} />
+            ))}
+          </div>
+        </section>
+
+        {/* Recent Projects strip */}
         <section>
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest">
@@ -59,42 +80,10 @@ function FeedPage() {
           </div>
         </section>
 
-        {/* Needs input */}
-        {needsInput.map((t) => {
-          const project = projectById(t.projectId);
-          return (
-            <section key={t.id}>
-              <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest mb-3">
-                Action_Required
-              </h2>
-              <Link
-                to="/threads/$threadId"
-                params={{ threadId: t.id }}
-                className="block p-4 bg-alert-soft border border-alert/40 rounded-xl relative overflow-hidden"
-              >
-                <div className="absolute top-3 right-3">
-                  <StatusDot status={t.status} />
-                </div>
-                <div className="text-[10px] font-mono text-alert mb-2 uppercase tracking-widest">
-                  {project?.name} · {t.agent}
-                </div>
-                <div className="text-sm font-medium leading-snug mb-2 pr-6">{t.title}</div>
-                <p className="text-xs text-muted leading-relaxed line-clamp-2">{t.question}</p>
-                <div className="mt-3 flex items-center justify-between">
-                  <span className="text-[10px] text-muted font-mono">Modified {t.updatedAt}</span>
-                  <span className="text-[10px] font-mono text-alert uppercase tracking-widest">
-                    Reply →
-                  </span>
-                </div>
-              </Link>
-            </section>
-          );
-        })}
-
-        {/* Active */}
+        {/* Recent Threads — running + done */}
         <section className="space-y-3">
           <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest">
-            Active_Threads
+            Recent_Threads
           </h2>
           {running.map((t) => {
             const project = projectById(t.projectId);
@@ -137,13 +126,6 @@ function FeedPage() {
               </Link>
             );
           })}
-        </section>
-
-        {/* Done */}
-        <section className="space-y-3">
-          <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest">
-            Recently_Done
-          </h2>
           {done.map((t) => {
             const project = projectById(t.projectId);
             return (
@@ -162,14 +144,51 @@ function FeedPage() {
                   </div>
                   <StatusPill status={t.status} />
                 </div>
-                {t.stats && (
-                  <div className="text-[10px] text-muted font-mono mt-1">{t.stats}</div>
-                )}
+                {t.stats && <div className="text-[10px] text-muted font-mono mt-1">{t.stats}</div>}
               </Link>
             );
           })}
         </section>
       </div>
     </AppShell>
+  );
+}
+
+function BlockedCard({ thread: t }: { thread: Thread }) {
+  const project = projectById(t.projectId);
+  const isFail = t.status === "failed";
+  const tone = isFail
+    ? "bg-danger-soft border-danger/50"
+    : "bg-alert-soft border-alert/40";
+  const accent = isFail ? "text-danger" : "text-alert";
+  const cta = isFail ? "Hand off →" : "Reply →";
+  const body = isFail
+    ? t.failureMessage ?? "Agent halted."
+    : t.question ?? "";
+  const kindLabel = isFail
+    ? t.failureKind === "rate_limit"
+      ? "FAILED · RATE LIMIT"
+      : "FAILED · CRASHED"
+    : "NEEDS INPUT";
+
+  return (
+    <Link
+      to="/threads/$threadId"
+      params={{ threadId: t.id }}
+      className={`block p-4 border rounded-xl relative overflow-hidden ${tone}`}
+    >
+      <div className="absolute top-3 right-3">
+        <StatusDot status={t.status} />
+      </div>
+      <div className={`text-[10px] font-mono mb-2 uppercase tracking-widest ${accent}`}>
+        {kindLabel} · {project?.name} · {t.agent}
+      </div>
+      <div className="text-sm font-medium leading-snug mb-2 pr-6">{t.title}</div>
+      <p className="text-xs text-muted leading-relaxed line-clamp-2">{body}</p>
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-[10px] text-muted font-mono">Updated {t.updatedAt}</span>
+        <span className={`text-[10px] font-mono uppercase tracking-widest ${accent}`}>{cta}</span>
+      </div>
+    </Link>
   );
 }
