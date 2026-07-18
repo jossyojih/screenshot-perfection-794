@@ -1,7 +1,15 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
-import { projectById, threads } from "@/lib/mock-data";
+import {
+  AGENTS,
+  MODELS_BY_AGENT,
+  projectById,
+  threads,
+  updateProjectDefaults,
+} from "@/lib/mock-data";
+import type { AgentName } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/projects/$projectId")({
   loader: ({ params }) => {
@@ -16,10 +24,7 @@ export const Route = createFileRoute("/projects/$projectId")({
     return {
       meta: [
         { title: `${loaderData.project.name} — Command Center` },
-        {
-          name: "description",
-          content: `Threads and status for ${loaderData.project.name}.`,
-        },
+        { name: "description", content: `Threads and status for ${loaderData.project.name}.` },
       ],
     };
   },
@@ -39,6 +44,15 @@ export const Route = createFileRoute("/projects/$projectId")({
 function ProjectDetail() {
   const { project } = Route.useLoaderData();
   const projectThreads = threads.filter((t) => t.projectId === project.id);
+
+  const [agent, setAgent] = useState<AgentName>(project.defaultAgent);
+  const [model, setModel] = useState<string>(project.defaultModel);
+  const [editing, setEditing] = useState(false);
+
+  const save = () => {
+    updateProjectDefaults(project.id, agent, model);
+    setEditing(false);
+  };
 
   return (
     <AppShell
@@ -82,10 +96,55 @@ function ProjectDetail() {
           </div>
         </section>
 
+        {/* Settings */}
+        <section>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest">
+              Settings
+            </h2>
+            {!editing ? (
+              <button
+                onClick={() => setEditing(true)}
+                className="text-[10px] font-mono text-muted uppercase tracking-widest hover:text-foreground"
+              >
+                Edit
+              </button>
+            ) : (
+              <button
+                onClick={save}
+                className="text-[10px] font-mono text-glow uppercase tracking-widest"
+              >
+                Save
+              </button>
+            )}
+          </div>
+          <div className="p-4 rounded-xl border border-edge bg-surface space-y-3">
+            <SettingRow
+              label="Default agent"
+              value={agent}
+              options={AGENTS}
+              editing={editing}
+              onChange={(v) => {
+                const next = v as AgentName;
+                setAgent(next);
+                setModel(MODELS_BY_AGENT[next][0]);
+              }}
+            />
+            <SettingRow
+              label="Default model"
+              value={model}
+              options={MODELS_BY_AGENT[agent]}
+              editing={editing}
+              onChange={(v) => setModel(v)}
+            />
+            <p className="text-[10px] text-muted font-mono pt-1 border-t border-edge/60">
+              New tasks inherit these unless overridden in the composer.
+            </p>
+          </div>
+        </section>
+
         <section className="space-y-3">
-          <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest">
-            Threads
-          </h2>
+          <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest">Threads</h2>
           {projectThreads.length === 0 && (
             <p className="text-sm text-muted">No threads yet. Send a task to start one.</p>
           )}
@@ -111,5 +170,40 @@ function ProjectDetail() {
         </section>
       </div>
     </AppShell>
+  );
+}
+
+function SettingRow({
+  label,
+  value,
+  options,
+  editing,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly string[];
+  editing: boolean;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="text-[10px] font-mono text-muted uppercase tracking-widest">{label}</div>
+      {editing ? (
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="bg-void border border-edge rounded px-2 py-1 text-xs font-mono focus:outline-none focus:border-glow/60"
+        >
+          {options.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <span className="text-xs font-mono">{value}</span>
+      )}
+    </div>
   );
 }
