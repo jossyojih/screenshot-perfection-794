@@ -1,9 +1,16 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
-import { projectById, threadById, timeline } from "@/lib/mock-data";
-import type { TimelineEntry } from "@/lib/mock-data";
+import {
+  AGENTS,
+  MODELS_BY_AGENT,
+  handoffThread,
+  projectById,
+  threadById,
+  timeline,
+} from "@/lib/mock-data";
+import type { AgentName, TimelineEntry } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/threads/$threadId")({
   loader: ({ params }) => {
@@ -45,9 +52,21 @@ export const Route = createFileRoute("/threads/$threadId")({
 
 function ThreadPage() {
   const { thread } = Route.useLoaderData();
+  const router = useRouter();
   const project = projectById(thread.projectId);
   const entries: TimelineEntry[] = timeline[thread.id] ?? [];
   const [reply, setReply] = useState("");
+  const [handoffAgent, setHandoffAgent] = useState<AgentName>(
+    AGENTS.find((a) => a !== thread.agent) ?? "Codex",
+  );
+  const [handoffModel, setHandoffModel] = useState<string>(
+    MODELS_BY_AGENT[AGENTS.find((a) => a !== thread.agent) ?? "Codex"][0],
+  );
+
+  const doHandoff = () => {
+    handoffThread(thread.id, handoffAgent, handoffModel);
+    router.invalidate();
+  };
 
   return (
     <AppShell
@@ -67,7 +86,10 @@ function ThreadPage() {
           <div className="flex items-center gap-2 mb-2">
             <StatusDot status={thread.status} />
             <StatusPill status={thread.status} />
-            <span className="text-[10px] text-muted font-mono">· {thread.agent}</span>
+            <span className="text-[10px] text-muted font-mono">
+              · {thread.agent}
+              {thread.model ? ` · ${thread.model}` : ""}
+            </span>
           </div>
           <h1 className="text-lg font-semibold leading-tight">{thread.title}</h1>
           <p className="text-[11px] text-muted font-mono mt-1">
@@ -75,7 +97,7 @@ function ThreadPage() {
           </p>
         </section>
 
-        {/* Live state banner */}
+        {/* Running */}
         {thread.status === "running" && (
           <div className="rounded-lg border border-glow/30 bg-glow-soft p-3">
             <div className="text-[10px] font-mono text-glow uppercase tracking-widest mb-1">
@@ -87,6 +109,7 @@ function ThreadPage() {
           </div>
         )}
 
+        {/* Needs input */}
         {thread.status === "needs_input" && (
           <div className="rounded-lg border border-alert/40 bg-alert-soft p-4">
             <div className="text-[10px] font-mono text-alert uppercase tracking-widest mb-2">
@@ -118,6 +141,60 @@ function ThreadPage() {
           </div>
         )}
 
+        {/* Failed / Blocked */}
+        {thread.status === "failed" && (
+          <div className="rounded-lg border-2 border-danger/60 bg-danger-soft p-4 shadow-[var(--shadow-danger)]">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex size-2 rotate-45 bg-danger" />
+              <div className="text-[10px] font-mono text-danger uppercase tracking-widest">
+                {thread.failureKind === "rate_limit" ? "Rate limit · agent halted" : "Crashed · agent halted"}
+              </div>
+            </div>
+            <p className="text-sm leading-relaxed mb-4">{thread.failureMessage}</p>
+
+            <div className="text-[10px] font-mono text-danger uppercase tracking-widest mb-2">
+              Hand off to another agent
+            </div>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <select
+                value={handoffAgent}
+                onChange={(e) => {
+                  const next = e.target.value as AgentName;
+                  setHandoffAgent(next);
+                  setHandoffModel(MODELS_BY_AGENT[next][0]);
+                }}
+                className="h-10 rounded-md bg-void border border-edge px-2 text-xs font-mono focus:outline-none focus:border-danger/60"
+              >
+                {AGENTS.filter((a) => a !== thread.agent).map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={handoffModel}
+                onChange={(e) => setHandoffModel(e.target.value)}
+                className="h-10 rounded-md bg-void border border-edge px-2 text-xs font-mono focus:outline-none focus:border-danger/60"
+              >
+                {MODELS_BY_AGENT[handoffAgent].map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={doHandoff}
+              className="w-full h-10 rounded-md bg-danger text-void text-xs font-bold uppercase tracking-widest"
+            >
+              Hand off & resume
+            </button>
+            <button className="w-full h-9 mt-2 rounded-md border border-edge bg-surface text-[11px] font-mono text-muted uppercase tracking-widest">
+              Retry with same agent
+            </button>
+          </div>
+        )}
+
         {/* Timeline */}
         <section>
           <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest mb-3">
@@ -127,22 +204,32 @@ function ThreadPage() {
             {entries.map((e) => (
               <li key={e.id} className="relative">
                 <span
-                  className={`absolute -left-[26px] top-1.5 size-2 rounded-full ring-4 ring-void ${
+                  className={`absolute -left-[26px] top-1.5 size-2 ring-4 ring-void ${
                     e.kind === "user"
-                      ? "bg-foreground"
+                      ? "rounded-full bg-foreground"
                       : e.kind === "question"
-                        ? "bg-alert"
-                        : e.kind === "summary"
-                          ? "bg-glow"
-                          : "bg-muted"
+                        ? "rounded-full bg-alert"
+                        : e.kind === "error"
+                          ? "rotate-45 bg-danger"
+                          : e.kind === "summary"
+                            ? "rounded-full bg-glow"
+                            : "rounded-full bg-muted"
                   }`}
                 />
-                <div className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">
+                <div
+                  className={`text-[10px] font-mono uppercase tracking-widest mb-1 ${
+                    e.kind === "error" ? "text-danger" : "text-muted"
+                  }`}
+                >
                   {e.timestamp} · {labelFor(e.kind)}
                 </div>
                 <div
                   className={`text-sm leading-relaxed ${
-                    e.kind === "user" ? "text-foreground" : "text-foreground/85"
+                    e.kind === "user"
+                      ? "text-foreground"
+                      : e.kind === "error"
+                        ? "text-danger"
+                        : "text-foreground/85"
                   }`}
                 >
                   {e.text}
@@ -162,7 +249,7 @@ function ThreadPage() {
           </ol>
         </section>
 
-        {/* Done summary card */}
+        {/* Done */}
         {thread.status === "done" && (
           <div className="rounded-lg border border-edge bg-surface p-4">
             <div className="text-[10px] font-mono text-glow uppercase tracking-widest mb-2">
@@ -198,6 +285,8 @@ function labelFor(kind: TimelineEntry["kind"]) {
       return "Question";
     case "summary":
       return "Summary";
+    case "error":
+      return "Error";
     default:
       return "System";
   }
