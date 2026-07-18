@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function AppShell({
   children,
@@ -23,8 +24,11 @@ export function AppShell({
             <h1 className="text-xs font-mono tracking-widest uppercase text-muted">{title}</h1>
           </Link>
           {headerRight ?? (
-            <div className="px-2 py-0.5 rounded border border-glow/30 bg-glow-soft">
-              <span className="text-[10px] font-mono text-glow uppercase">2 Agents Live</span>
+            <div className="flex items-center gap-2">
+              <div className="px-2 py-0.5 rounded border border-glow/30 bg-glow-soft">
+                <span className="text-[10px] font-mono text-glow uppercase">2 Live</span>
+              </div>
+              <ThemeToggle />
             </div>
           )}
         </header>
