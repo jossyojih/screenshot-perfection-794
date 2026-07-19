@@ -19,9 +19,15 @@ export interface Project {
   defaultModel: string;
 }
 
+export interface ContextFile {
+  repo: string;
+  path: string;
+}
+
 export interface Thread {
   id: string;
   projectId: string;
+  repoScope: string[];
   title: string;
   status: ThreadStatus;
   updatedAt: string;
@@ -52,7 +58,7 @@ export const projects: Project[] = [
   {
     id: "onyx",
     name: "Project_Onyx",
-    repos: ["onyx-web", "onyx-api"],
+    repos: ["onyx-web", "onyx-api", "onyx-docs"],
     progress: 84,
     defaultAgent: "Claude Code",
     defaultModel: "Sonnet 5",
@@ -80,6 +86,7 @@ export const threads: Thread[] = [
   {
     id: "t-auth",
     projectId: "onyx",
+    repoScope: ["onyx-web", "onyx-api"],
     title: "Clarify Auth.ts controller logic",
     status: "needs_input",
     updatedAt: "2m ago",
@@ -91,6 +98,7 @@ export const threads: Thread[] = [
   {
     id: "t-db",
     projectId: "onyx",
+    repoScope: ["onyx-api", "onyx-docs"],
     title: "Refactor DB schema for multitenancy",
     status: "running",
     updatedAt: "just now",
@@ -102,6 +110,7 @@ export const threads: Thread[] = [
   {
     id: "t-payments",
     projectId: "atlas",
+    repoScope: ["atlas-core"],
     title: "Wire Stripe webhooks to ledger",
     status: "failed",
     updatedAt: "4m ago",
@@ -114,6 +123,7 @@ export const threads: Thread[] = [
   {
     id: "t-ci",
     projectId: "atlas",
+    repoScope: ["atlas-core"],
     title: "Fix broken unit tests in CI pipeline",
     status: "done",
     updatedAt: "1h ago",
@@ -125,6 +135,7 @@ export const threads: Thread[] = [
   {
     id: "t-hostel",
     projectId: "hyper",
+    repoScope: ["hyper-mono"],
     title: "Hostel Management Feature — scaffolding",
     status: "done",
     updatedAt: "yesterday",
@@ -135,10 +146,22 @@ export const threads: Thread[] = [
   },
 ];
 
-export const contextFiles: Record<string, string[]> = {
-  onyx: ["README.md", "ARCHITECTURE.md", "plans/multitenancy.md", "plans/auth-v2.md"],
-  hyper: ["README.md", "plans/hostel-feature.md"],
-  atlas: ["README.md", "CONTRIBUTING.md", "plans/ledger-refactor.md"],
+export const contextFiles: Record<string, ContextFile[]> = {
+  onyx: [
+    { repo: "onyx-docs", path: "README.md" },
+    { repo: "onyx-docs", path: "ARCHITECTURE.md" },
+    { repo: "onyx-docs", path: "plans/multitenancy.md" },
+    { repo: "onyx-docs", path: "plans/auth-v2.md" },
+  ],
+  hyper: [
+    { repo: "hyper-mono", path: "README.md" },
+    { repo: "hyper-mono", path: "plans/hostel-feature.md" },
+  ],
+  atlas: [
+    { repo: "atlas-core", path: "README.md" },
+    { repo: "atlas-core", path: "CONTRIBUTING.md" },
+    { repo: "atlas-core", path: "plans/ledger-refactor.md" },
+  ],
 };
 
 export const timeline: Record<string, TimelineEntry[]> = {

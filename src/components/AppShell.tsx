@@ -1,4 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import {
+  Activity,
+  Command,
+  FolderKanban,
+  LayoutDashboard,
+  Plus,
+  TerminalSquare,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "./NotificationBell";
@@ -17,84 +25,166 @@ export function AppShell({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
-    <div className="min-h-screen w-full bg-void text-foreground flex justify-center">
-      <div className="w-full max-w-[440px] min-h-screen flex flex-col border-x border-edge">
-        <header className="px-4 pt-6 pb-4 border-b border-edge flex items-center justify-between shrink-0">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-glow shadow-[var(--shadow-glow)]" />
-            <h1 className="text-xs font-mono tracking-widest uppercase text-muted">{title}</h1>
-          </Link>
-          {headerRight ?? (
+    <div className="min-h-screen w-full bg-void text-foreground">
+      <DesktopSidebar pathname={pathname} />
+
+      <div className="min-h-screen lg:pl-64">
+        <header className="sticky top-0 z-30 border-b border-edge bg-void/85 backdrop-blur-xl">
+          <div className="flex h-[68px] items-center justify-between px-4 lg:px-8">
+            <Link to="/" className="flex items-center gap-2 lg:hidden">
+              <span className="size-2 rounded-full bg-glow shadow-[var(--shadow-glow)]" />
+              <span className="text-xs font-mono tracking-widest uppercase text-muted">
+                {title}
+              </span>
+            </Link>
+
+            <div className="hidden min-w-0 lg:block">
+              <div className="text-[10px] font-mono uppercase tracking-[0.24em] text-muted">
+                Remote engineering
+              </div>
+              <h1 className="mt-1 truncate text-sm font-medium">{title}</h1>
+            </div>
+
             <div className="flex items-center gap-2">
+              {headerRight}
               <NotificationBell />
               <ThemeToggle />
             </div>
-          )}
+          </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto pb-44">{children}</div>
+        <main className={`min-w-0 ${bottomBar === false ? "pb-8" : "pb-44 lg:pb-24"}`}>
+          {children}
+        </main>
 
         {bottomBar === false ? null : bottomBar ? (
-          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[440px]">
-            {bottomBar}
-          </div>
+          <div className="fixed inset-x-0 bottom-0 z-40 lg:left-64">{bottomBar}</div>
         ) : (
-          <BottomBar pathname={pathname} />
+          <MobileBottomBar pathname={pathname} />
         )}
       </div>
     </div>
   );
 }
 
-function BottomBar({ pathname }: { pathname: string }) {
-  const isFeed = pathname === "/";
-  const isProj = pathname.startsWith("/projects");
-  const isLogs = pathname.startsWith("/logs");
-
+function DesktopSidebar({ pathname }: { pathname: string }) {
   return (
-    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[440px] p-4 border-t border-edge bg-surface/80 backdrop-blur-md">
-      <Link
-        to="/compose"
-        className="flex items-center gap-3 group"
-        aria-label="Instruct agent"
-      >
-        <div className="flex-1 bg-void border border-edge rounded-full px-4 h-11 flex items-center text-muted group-hover:border-glow/40 transition-colors">
-          <span className="text-xs">Instruct agent...</span>
-        </div>
-        <span className="size-11 bg-foreground text-void rounded-full flex items-center justify-center">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            className="size-4"
-          >
-            <path d="M5 12h14M13 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-edge bg-surface/45 lg:flex">
+      <Link to="/" className="flex h-[68px] items-center gap-3 border-b border-edge px-6">
+        <span className="flex size-8 items-center justify-center rounded-lg border border-glow/30 bg-glow-soft text-glow">
+          <Command className="size-4" />
+        </span>
+        <span>
+          <span className="block text-xs font-semibold tracking-wide">Command Center</span>
+          <span className="mt-0.5 block text-[9px] font-mono uppercase tracking-[0.2em] text-muted">
+            Remote workspace
+          </span>
         </span>
       </Link>
 
-      <nav className="flex justify-around mt-4 pt-2">
-        <NavItem to="/" label="FEED" active={isFeed} />
-        <NavItem to="/projects" label="PROJ" active={isProj} />
-        <NavItem to="/logs" label="LOGS" active={isLogs} />
+      <div className="flex-1 px-3 py-5">
+        <div className="mb-3 px-3 text-[9px] font-mono uppercase tracking-[0.22em] text-muted">
+          Workspace
+        </div>
+        <nav className="space-y-1">
+          <DesktopNavItem
+            to="/"
+            label="Overview"
+            icon={<LayoutDashboard className="size-4" />}
+            active={pathname === "/"}
+          />
+          <DesktopNavItem
+            to="/projects"
+            label="Projects"
+            icon={<FolderKanban className="size-4" />}
+            active={pathname.startsWith("/projects")}
+          />
+          <DesktopNavItem
+            to="/logs"
+            label="Agent logs"
+            icon={<TerminalSquare className="size-4" />}
+            active={pathname.startsWith("/logs")}
+          />
+        </nav>
+
+        <Link
+          to="/compose"
+          className="mt-6 flex h-11 items-center justify-center gap-2 rounded-lg bg-glow text-xs font-bold uppercase tracking-widest text-void shadow-[var(--shadow-glow)] transition-transform hover:-translate-y-0.5"
+        >
+          <Plus className="size-4" />
+          New instruction
+        </Link>
+      </div>
+
+      <div className="border-t border-edge p-4">
+        <div className="rounded-lg border border-edge bg-void/60 p-3">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted">
+              <Activity className="size-3.5 text-glow" /> System
+            </span>
+            <span className="size-1.5 rounded-full bg-glow shadow-[var(--shadow-glow-soft)]" />
+          </div>
+          <div className="mt-2 text-xs font-medium">EC2 runner online</div>
+          <div className="mt-1 text-[9px] font-mono text-muted">eu-west-2 · 3 agents ready</div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function DesktopNavItem({
+  to,
+  label,
+  icon,
+  active,
+}: {
+  to: "/" | "/projects" | "/logs";
+  label: string;
+  icon: ReactNode;
+  active: boolean;
+}) {
+  return (
+    <Link
+      to={to}
+      className={`flex h-10 items-center gap-3 rounded-lg px-3 text-xs transition-colors ${
+        active
+          ? "border border-glow/25 bg-glow-soft text-foreground"
+          : "border border-transparent text-muted hover:bg-surface hover:text-foreground"
+      }`}
+    >
+      <span className={active ? "text-glow" : "text-muted"}>{icon}</span>
+      <span>{label}</span>
+      {active && <span className="ml-auto size-1 rounded-full bg-glow" />}
+    </Link>
+  );
+}
+
+function MobileBottomBar({ pathname }: { pathname: string }) {
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-surface/90 p-4 backdrop-blur-md lg:hidden">
+      <Link to="/compose" className="flex items-center gap-3 group" aria-label="Instruct agent">
+        <div className="flex h-11 flex-1 items-center rounded-full border border-edge bg-void px-4 text-muted transition-colors group-hover:border-glow/40">
+          <span className="text-xs">Instruct agent...</span>
+        </div>
+        <span className="flex size-11 items-center justify-center rounded-full bg-foreground text-void">
+          <Plus className="size-4" />
+        </span>
+      </Link>
+
+      <nav className="mt-4 flex justify-around pt-2">
+        <MobileNavItem to="/" label="FEED" active={pathname === "/"} />
+        <MobileNavItem to="/projects" label="PROJ" active={pathname.startsWith("/projects")} />
+        <MobileNavItem to="/logs" label="LOGS" active={pathname.startsWith("/logs")} />
       </nav>
     </div>
   );
 }
 
-function NavItem({ to, label, active }: { to: string; label: string; active: boolean }) {
+function MobileNavItem({ to, label, active }: { to: "/" | "/projects" | "/logs"; label: string; active: boolean }) {
   return (
     <Link to={to} className="flex flex-col items-center gap-1">
-      <span
-        className={`size-1 mb-1 rounded-full ${
-          active ? "bg-glow shadow-[var(--shadow-glow-soft)]" : "bg-transparent"
-        }`}
-      />
-      <span className={`text-[10px] font-mono ${active ? "text-foreground" : "text-muted"}`}>
-        {label}
-      </span>
+      <span className={`mb-1 size-1 rounded-full ${active ? "bg-glow shadow-[var(--shadow-glow-soft)]" : "bg-transparent"}`} />
+      <span className={`text-[10px] font-mono ${active ? "text-foreground" : "text-muted"}`}>{label}</span>
     </Link>
   );
 }

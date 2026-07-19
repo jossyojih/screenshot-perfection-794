@@ -55,6 +55,9 @@ function ThreadPage() {
   const router = useRouter();
   const project = projectById(thread.projectId);
   const entries: TimelineEntry[] = timeline[thread.id] ?? [];
+  const visibleEntries = entries.filter(
+    (entry) => !(thread.status === "needs_input" && entry.kind === "question"),
+  );
   const [reply, setReply] = useState("");
   const [handoffAgent, setHandoffAgent] = useState<AgentName>(
     AGENTS.find((a) => a !== thread.agent) ?? "Codex",
@@ -80,9 +83,9 @@ function ThreadPage() {
         </Link>
       }
     >
-      <div className="px-4 py-4 space-y-6">
+      <div className="mx-auto max-w-[1100px] space-y-6 px-4 py-5 lg:px-8 lg:py-8">
         {/* Header */}
-        <section>
+        <section className="rounded-xl border border-edge bg-surface/50 p-4 lg:p-6">
           <div className="flex items-center gap-2 mb-2">
             <StatusDot status={thread.status} />
             <StatusPill status={thread.status} />
@@ -91,10 +94,15 @@ function ThreadPage() {
               {thread.model ? ` · ${thread.model}` : ""}
             </span>
           </div>
-          <h1 className="text-lg font-semibold leading-tight">{thread.title}</h1>
-          <p className="text-[11px] text-muted font-mono mt-1">
-            {project?.repos.join(" · ")} · updated {thread.updatedAt}
-          </p>
+          <h1 className="text-lg font-semibold leading-tight lg:text-2xl">{thread.title}</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {thread.repoScope.map((repo) => (
+              <span key={repo} className="rounded border border-edge bg-void/60 px-2 py-1 text-[9px] font-mono text-muted">
+                {repo}
+              </span>
+            ))}
+            <span className="text-[9px] font-mono text-muted">updated {thread.updatedAt}</span>
+          </div>
         </section>
 
         {/* Running */}
@@ -196,12 +204,12 @@ function ThreadPage() {
         )}
 
         {/* Timeline */}
-        <section>
+        <section className="rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
           <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest mb-3">
             Activity
           </h2>
           <ol className="relative border-l border-edge ml-1 space-y-5 pl-5">
-            {entries.map((e) => (
+            {visibleEntries.map((e) => (
               <li key={e.id} className="relative">
                 <span
                   className={`absolute -left-[26px] top-1.5 size-2 ring-4 ring-void ${
@@ -260,6 +268,7 @@ function ThreadPage() {
             <div className="mt-3 grid grid-cols-2 gap-2">
               <Link
                 to="/compose"
+                search={{ projectId: thread.projectId, threadId: thread.id }}
                 className="h-9 rounded-md bg-foreground text-void text-xs font-bold uppercase tracking-widest flex items-center justify-center"
               >
                 Continue

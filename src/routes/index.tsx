@@ -1,4 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowUpRight, CheckCircle2, CircleDot, FolderGit2, TriangleAlert } from "lucide-react";
+import type { ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
 import { projects, threads, projectById } from "@/lib/mock-data";
@@ -23,171 +25,176 @@ function FeedPage() {
   const done = threads.filter((t) => t.status === "done");
 
   return (
-    <AppShell>
-      <div className="px-4 py-4 space-y-6">
-        {/* Action Required — needs_input + failed */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest">
-              Action_Required
-            </h2>
-            <span className="text-[10px] font-mono text-muted">{blocked.length} blocked</span>
+    <AppShell title="Overview">
+      <div className="mx-auto max-w-[1440px] px-4 py-5 lg:px-8 lg:py-8">
+        <div className="mb-6 hidden items-end justify-between lg:flex">
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-glow">Live workspace</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight">Engineering overview</h2>
+            <p className="mt-1 text-sm text-muted">Monitor projects, repositories, and agent work from one place.</p>
           </div>
-          {blocked.length === 0 && (
-            <div className="p-4 rounded-xl border border-dashed border-edge text-center text-xs text-muted">
-              All clear. No agents waiting on you.
-            </div>
-          )}
-          <div className="space-y-3">
-            {blocked.map((t) => (
-              <BlockedCard key={t.id} thread={t} />
-            ))}
-          </div>
+          <Link
+            to="/compose"
+            className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-glow hover:text-foreground"
+          >
+            Dispatch task <ArrowUpRight className="size-4" />
+          </Link>
+        </div>
+
+        <section className="mb-6 hidden grid-cols-4 gap-3 lg:grid">
+          <Metric label="Active projects" value={projects.filter((p) => !p.paused).length} icon={<FolderGit2 />} />
+          <Metric label="Running agents" value={running.length} icon={<CircleDot />} tone="glow" />
+          <Metric label="Needs attention" value={blocked.length} icon={<TriangleAlert />} tone="alert" />
+          <Metric label="Completed" value={done.length} icon={<CheckCircle2 />} />
         </section>
 
-        {/* Recent Projects strip */}
-        <section>
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest">
-              Recent_Projects
-            </h2>
-            <Link to="/projects" className="text-[10px] text-muted underline underline-offset-2">
-              View all
-            </Link>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
-            {projects.map((p) => (
-              <Link
-                to="/projects/$projectId"
-                params={{ projectId: p.id }}
-                key={p.id}
-                className={`shrink-0 w-36 p-3 bg-surface border border-edge rounded-lg hover:border-glow/40 transition-colors ${
-                  p.paused ? "opacity-60" : ""
-                }`}
-              >
-                <div className="text-xs font-medium mb-1 truncate">{p.name}</div>
-                <div className="text-[10px] text-muted font-mono">
-                  {p.paused ? "Paused" : `${p.progress}% complete`}
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+          <div className="space-y-6">
+            <section>
+              <SectionHeading title="Action_Required" meta={`${blocked.length} blocked`} />
+              {blocked.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-edge p-5 text-center text-xs text-muted">
+                  All clear. No agents waiting on you.
                 </div>
-                <div className="mt-3 w-full h-1 bg-edge rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-glow shadow-[var(--shadow-glow-soft)]"
-                    style={{ width: `${p.paused ? 0 : p.progress}%` }}
-                  />
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                  {blocked.map((t) => <BlockedCard key={t.id} thread={t} />)}
                 </div>
-              </Link>
-            ))}
-          </div>
-        </section>
+              )}
+            </section>
 
-        {/* Recent Threads — running + done */}
-        <section className="space-y-3">
-          <h2 className="text-[11px] font-mono uppercase text-muted tracking-widest">
-            Recent_Threads
-          </h2>
-          {running.map((t) => {
-            const project = projectById(t.projectId);
-            return (
-              <Link
-                key={t.id}
-                to="/threads/$threadId"
-                params={{ threadId: t.id }}
-                className="block p-4 bg-surface border border-edge rounded-xl hover:border-glow/30 transition-colors"
-              >
-                <div className="flex justify-between items-start gap-3 mb-2">
-                  <div>
-                    <div className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">
-                      {project?.name} · {t.agent}
+            <section>
+              <SectionHeading title="Active_Threads" meta={`${running.length} running`} />
+              <div className="space-y-3">
+                {running.map((t) => <ThreadCard key={t.id} thread={t} />)}
+                {done.slice(0, 2).map((t) => <ThreadCard key={t.id} thread={t} subdued />)}
+              </div>
+            </section>
+          </div>
+
+          <div className="space-y-6">
+            <section>
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-[11px] font-mono uppercase tracking-widest text-muted">Projects</h2>
+                <Link to="/projects" className="text-[10px] font-mono uppercase tracking-widest text-muted hover:text-foreground">View all</Link>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                {projects.map((p) => (
+                  <Link
+                    to="/projects/$projectId"
+                    params={{ projectId: p.id }}
+                    key={p.id}
+                    className={`group rounded-xl border border-edge bg-surface p-4 transition-colors hover:border-glow/40 ${p.paused ? "opacity-60" : ""}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">{p.name}</div>
+                        <div className="mt-1 text-[10px] font-mono text-muted">
+                          {p.repos.length} {p.repos.length === 1 ? "repository" : "repositories"}
+                        </div>
+                      </div>
+                      <ArrowUpRight className="size-4 text-muted transition-colors group-hover:text-glow" />
                     </div>
-                    <div className="text-sm font-medium">{t.title}</div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <StatusDot status={t.status} />
-                    <StatusPill status={t.status} />
-                  </div>
-                </div>
-                {t.currentAction && (
-                  <div className="font-mono text-[10px] text-muted/80 bg-void/60 border border-edge/60 p-2 rounded mb-3 overflow-hidden whitespace-nowrap">
-                    {t.currentAction}
-                  </div>
-                )}
-                {t.tags && (
-                  <div className="flex gap-2 flex-wrap">
-                    {t.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-2 py-0.5 rounded-full border border-edge bg-void text-[9px] text-muted font-mono"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </Link>
-            );
-          })}
-          {done.map((t) => {
-            const project = projectById(t.projectId);
-            return (
-              <Link
-                key={t.id}
-                to="/threads/$threadId"
-                params={{ threadId: t.id }}
-                className="block p-4 bg-surface/60 border border-edge/60 rounded-xl opacity-80 hover:opacity-100 transition-opacity"
-              >
-                <div className="flex justify-between items-start gap-3 mb-1">
-                  <div>
-                    <div className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">
-                      {project?.name} · {t.updatedAt}
+                    <div className="mt-4 flex flex-wrap gap-1.5">
+                      {p.repos.map((repo) => (
+                        <span key={repo} className="rounded border border-edge bg-void/70 px-2 py-1 text-[9px] font-mono text-muted">{repo}</span>
+                      ))}
                     </div>
-                    <div className="text-sm font-medium">{t.title}</div>
-                  </div>
-                  <StatusPill status={t.status} />
-                </div>
-                {t.stats && <div className="text-[10px] text-muted font-mono mt-1">{t.stats}</div>}
-              </Link>
-            );
-          })}
-        </section>
+                    <div className="mt-4 h-1 overflow-hidden rounded-full bg-edge">
+                      <div className="h-full bg-glow shadow-[var(--shadow-glow-soft)]" style={{ width: `${p.paused ? 0 : p.progress}%` }} />
+                    </div>
+                    <div className="mt-2 text-right text-[9px] font-mono text-muted">{p.paused ? "Paused" : `${p.progress}% complete`}</div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-xl border border-edge bg-surface/60 p-4">
+              <SectionHeading title="Runner_Status" meta="Healthy" />
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <InfoCell label="Region" value="eu-west-2" />
+                <InfoCell label="Host" value="Ubuntu 24.04" />
+                <InfoCell label="Codex" value="v0.144.6" />
+                <InfoCell label="Workspace" value="3 projects" />
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
     </AppShell>
+  );
+}
+
+function Metric({ label, value, icon, tone = "muted" }: { label: string; value: number; icon: ReactNode; tone?: "muted" | "glow" | "alert" }) {
+  const color = tone === "glow" ? "text-glow" : tone === "alert" ? "text-alert" : "text-muted";
+  return (
+    <div className="rounded-xl border border-edge bg-surface/70 p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-mono uppercase tracking-widest text-muted">{label}</span>
+        <span className={`${color} [&>svg]:size-4`}>{icon}</span>
+      </div>
+      <div className="mt-3 text-2xl font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function SectionHeading({ title, meta }: { title: string; meta: string }) {
+  return (
+    <div className="mb-3 flex items-center justify-between">
+      <h2 className="text-[11px] font-mono uppercase tracking-widest text-muted">{title}</h2>
+      <span className="text-[10px] font-mono text-muted">{meta}</span>
+    </div>
+  );
+}
+
+function InfoCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-edge bg-void/55 p-3">
+      <div className="text-[9px] font-mono uppercase tracking-widest text-muted">{label}</div>
+      <div className="mt-1.5 truncate font-mono text-[11px]">{value}</div>
+    </div>
+  );
+}
+
+function ThreadCard({ thread: t, subdued = false }: { thread: Thread; subdued?: boolean }) {
+  const project = projectById(t.projectId);
+  return (
+    <Link
+      to="/threads/$threadId"
+      params={{ threadId: t.id }}
+      className={`block rounded-xl border border-edge bg-surface p-4 transition-colors hover:border-glow/30 ${subdued ? "opacity-70 hover:opacity-100" : ""}`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="mb-1 text-[10px] font-mono uppercase tracking-widest text-muted">{project?.name} · {t.agent}</div>
+          <div className="truncate text-sm font-medium">{t.title}</div>
+          {t.currentAction && <div className="mt-3 truncate rounded border border-edge/60 bg-void/60 p-2 font-mono text-[10px] text-muted">{t.currentAction}</div>}
+          {t.stats && <div className="mt-2 text-[10px] font-mono text-muted">{t.stats}</div>}
+        </div>
+        <div className="flex shrink-0 items-center gap-2"><StatusDot status={t.status} /><StatusPill status={t.status} /></div>
+      </div>
+    </Link>
   );
 }
 
 function BlockedCard({ thread: t }: { thread: Thread }) {
   const project = projectById(t.projectId);
   const isFail = t.status === "failed";
-  const tone = isFail
-    ? "bg-danger-soft border-danger/50"
-    : "bg-alert-soft border-alert/40";
+  const tone = isFail ? "bg-danger-soft border-danger/50" : "bg-alert-soft border-alert/40";
   const accent = isFail ? "text-danger" : "text-alert";
-  const cta = isFail ? "Hand off →" : "Reply →";
-  const body = isFail
-    ? t.failureMessage ?? "Agent halted."
-    : t.question ?? "";
-  const kindLabel = isFail
-    ? t.failureKind === "rate_limit"
-      ? "FAILED · RATE LIMIT"
-      : "FAILED · CRASHED"
-    : "NEEDS INPUT";
+  const body = isFail ? t.failureMessage ?? "Agent halted." : t.question ?? "";
 
   return (
-    <Link
-      to="/threads/$threadId"
-      params={{ threadId: t.id }}
-      className={`block p-4 border rounded-xl relative overflow-hidden ${tone}`}
-    >
-      <div className="absolute top-3 right-3">
+    <Link to="/threads/$threadId" params={{ threadId: t.id }} className={`block rounded-xl border p-4 ${tone}`}>
+      <div className={`mb-2 flex items-center justify-between text-[10px] font-mono uppercase tracking-widest ${accent}`}>
+        <span>{isFail ? "FAILED" : "NEEDS INPUT"} · {project?.name}</span>
         <StatusDot status={t.status} />
       </div>
-      <div className={`text-[10px] font-mono mb-2 uppercase tracking-widest ${accent}`}>
-        {kindLabel} · {project?.name} · {t.agent}
-      </div>
-      <div className="text-sm font-medium leading-snug mb-2 pr-6">{t.title}</div>
-      <p className="text-xs text-muted leading-relaxed line-clamp-2">{body}</p>
+      <div className="mb-2 text-sm font-medium leading-snug">{t.title}</div>
+      <p className="line-clamp-2 text-xs leading-relaxed text-muted">{body}</p>
       <div className="mt-3 flex items-center justify-between">
-        <span className="text-[10px] text-muted font-mono">Updated {t.updatedAt}</span>
-        <span className={`text-[10px] font-mono uppercase tracking-widest ${accent}`}>{cta}</span>
+        <span className="text-[10px] font-mono text-muted">{t.agent} · {t.updatedAt}</span>
+        <span className={`text-[10px] font-mono uppercase tracking-widest ${accent}`}>{isFail ? "Hand off →" : "Reply →"}</span>
       </div>
     </Link>
   );

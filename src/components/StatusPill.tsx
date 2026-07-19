@@ -1,6 +1,6 @@
 import type { ThreadStatus } from "@/lib/mock-data";
 
-const label: Record<ThreadStatus, string> = {
+export const threadStatusLabel: Record<ThreadStatus, string> = {
   running: "RUNNING",
   needs_input: "NEEDS INPUT",
   failed: "FAILED",
@@ -17,7 +17,7 @@ const colorClass: Record<ThreadStatus, string> = {
 export function StatusPill({ status }: { status: ThreadStatus }) {
   return (
     <span className={`text-[10px] font-mono tracking-wider ${colorClass[status]}`}>
-      {label[status]}
+      {threadStatusLabel[status]}
     </span>
   );
 }
