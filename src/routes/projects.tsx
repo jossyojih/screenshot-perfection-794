@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, FolderGit2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
@@ -11,6 +11,13 @@ export const Route = createFileRoute("/projects")({
 });
 
 function ProjectsPage() {
+  const matchRoute = useMatchRoute();
+  const projectDetailMatch = matchRoute({ to: "/projects/$projectId" });
+
+  return projectDetailMatch ? <Outlet /> : <ProjectsList />;
+}
+
+function ProjectsList() {
   const projects = useQuery({ queryKey: ["projects"], queryFn: getProjects });
   const jobs = useQuery({ queryKey: ["jobs"], queryFn: getJobs });
   return (
