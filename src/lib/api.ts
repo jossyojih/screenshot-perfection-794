@@ -1,5 +1,10 @@
 export type Agent = "mock" | "codex" | "claude";
 export type JobStatus = "queued" | "running" | "needs_input" | "failed" | "cancelled" | "done";
+export type ScopeMode = "auto" | "manual" | "all";
+export interface ScopeReason {
+  repositoryId: string;
+  reason: string;
+}
 export interface Repository {
   id: string;
   name: string;
@@ -35,6 +40,11 @@ export interface Job {
   projectId: string;
   prompt: string;
   selectedRepositoryIds: string[];
+  scopeMode: ScopeMode;
+  requestedRepositoryIds: string[];
+  resolvedRepositoryIds: string[];
+  scopeReasons: ScopeReason[];
+  proposedRepositoryIds?: string[];
   parentJobId?: string;
   threadId?: string;
   agent: Agent;
@@ -194,10 +204,19 @@ export async function getConversation(id: string) {
   ]);
 }
 export async function createJob(
-  input: Pick<Job, "projectId" | "prompt" | "selectedRepositoryIds" | "agent">,
+  input: Pick<Job, "projectId" | "prompt" | "scopeMode" | "requestedRepositoryIds" | "agent">,
 ) {
   return objectPayload<Job>(
     await request<unknown>("/jobs", { method: "POST", body: JSON.stringify(input) }),
+    ["job", "data"],
+  );
+}
+export async function decideJobScope(id: string, decision: "approve" | "reject") {
+  return objectPayload<Job>(
+    await request<unknown>(`/jobs/${encodeURIComponent(id)}/scope-decision`, {
+      method: "POST",
+      body: JSON.stringify({ decision }),
+    }),
     ["job", "data"],
   );
 }

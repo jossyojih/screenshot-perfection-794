@@ -7,6 +7,7 @@ import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
 import {
   cancelJob,
+  decideJobScope,
   continueJob,
   errorMessage,
   formatTime,
@@ -190,6 +191,10 @@ function ThreadPage() {
       refresh();
     },
   });
+  const scopeDecision = useMutation({
+    mutationFn: (decision: "approve" | "reject") => decideJobScope(threadId, decision),
+    onSuccess: refresh,
+  });
   const sendFollowUp = useMutation({
     mutationFn: () => continueJob(threadId, followUp.trim(), followUpRequestId),
     onSuccess: (created) => {
@@ -260,18 +265,28 @@ function ThreadPage() {
           </div>
           <h1 className="text-lg font-semibold leading-tight lg:text-2xl">{jobTitle(j)}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {j.selectedRepositoryIds.map((id) => (
-              <span
-                key={id}
-                className="rounded border border-edge bg-void/60 px-2 py-1 text-[9px] font-mono text-muted"
-              >
-                {repoNames.get(id) ?? id}
-              </span>
-            ))}
+            <span className="rounded border border-glow/30 bg-glow-soft px-2 py-1 text-[9px] font-mono uppercase text-glow">
+              {j.scopeMode ?? "manual"} scope
+            </span>
             <span className="text-[9px] font-mono text-muted">
               updated {formatTime(j.updatedAt ?? j.createdAt)}
             </span>
           </div>
+        </section>
+        <section className="grid gap-3 rounded-xl border border-edge bg-surface/50 p-4 md:grid-cols-2 lg:p-6">
+          <ScopeList
+            title="Requested scope"
+            ids={j.requestedRepositoryIds ?? j.selectedRepositoryIds}
+            names={repoNames}
+            empty="No repositories requested; the planner chooses the minimum scope."
+          />
+          <ScopeList
+            title="Resolved scope"
+            ids={j.resolvedRepositoryIds ?? j.selectedRepositoryIds}
+            names={repoNames}
+            reasons={j.scopeReasons}
+            empty="Scope planning is pending."
+          />
         </section>
         {earlierRuns.length > 0 && (
           <section className="rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
@@ -328,29 +343,59 @@ function ThreadPage() {
             <div className="mb-2 text-[10px] font-mono uppercase tracking-widest text-alert">
               Needs input
             </div>
-            {j.question && <p className="mb-3 text-sm">{j.question}</p>}
-            <div className="flex gap-2">
-              <input
-                value={reply}
-                onChange={(e) => setReply(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && reply.trim()) sendReply.mutate();
-                }}
-                placeholder="Type your reply…"
-                className="h-10 min-w-0 flex-1 rounded-md border border-edge bg-void px-3 text-xs focus:border-alert/60 focus:outline-none"
-              />
-              <button
-                onClick={() => sendReply.mutate()}
-                disabled={!reply.trim() || sendReply.isPending}
-                className="rounded-md bg-foreground px-4 text-[10px] font-mono uppercase text-void disabled:bg-edge"
-              >
-                Send
-              </button>
-            </div>
+            {j.proposedRepositoryIds?.length ? (
+              <>
+                <p className="mb-3 text-sm">
+                  The planner needs write access to{" "}
+                  {j.proposedRepositoryIds.map((id) => repoNames.get(id) ?? id).join(", ")}. Access
+                  will not expand unless you approve.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => scopeDecision.mutate("approve")}
+                    disabled={scopeDecision.isPending}
+                    className="rounded-md bg-foreground px-4 py-2 text-[10px] font-mono uppercase text-void disabled:opacity-50"
+                  >
+                    Approve Scope
+                  </button>
+                  <button
+                    onClick={() => scopeDecision.mutate("reject")}
+                    disabled={scopeDecision.isPending}
+                    className="rounded-md border border-edge px-4 py-2 text-[10px] font-mono uppercase disabled:opacity-50"
+                  >
+                    Keep Current Scope
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {j.question && <p className="mb-3 text-sm">{j.question}</p>}
+                <div className="flex gap-2">
+                  <input
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && reply.trim()) sendReply.mutate();
+                    }}
+                    placeholder="Type your reply…"
+                    className="h-10 min-w-0 flex-1 rounded-md border border-edge bg-void px-3 text-xs focus:border-alert/60 focus:outline-none"
+                  />
+                  <button
+                    onClick={() => sendReply.mutate()}
+                    disabled={!reply.trim() || sendReply.isPending}
+                    className="rounded-md bg-foreground px-4 text-[10px] font-mono uppercase text-void disabled:bg-edge"
+                  >
+                    Send
+                  </button>
+                </div>
+              </>
+            )}
           </section>
         )}
-        {(cancel.isError || sendReply.isError || sendFollowUp.isError) && (
-          <ErrorState error={cancel.error ?? sendReply.error ?? sendFollowUp.error} />
+        {(cancel.isError || sendReply.isError || sendFollowUp.isError || scopeDecision.isError) && (
+          <ErrorState
+            error={cancel.error ?? sendReply.error ?? sendFollowUp.error ?? scopeDecision.error}
+          />
         )}
         {streamError && active && (
           <div className="rounded-lg border border-alert/30 bg-alert-soft p-3 text-xs text-alert">
@@ -427,6 +472,11 @@ function ThreadPage() {
                       {result.status}
                     </div>
                   )}
+                  {typeof result.scopeReason === "string" && (
+                    <p className="mt-2 text-xs text-muted">
+                      Included because: {result.scopeReason}
+                    </p>
+                  )}
                   {result.summary && (
                     <p className="mt-3 whitespace-pre-wrap text-xs text-muted">{result.summary}</p>
                   )}
@@ -481,6 +531,42 @@ function ThreadPage() {
         )}
       </Page>
     </AppShell>
+  );
+}
+
+function ScopeList({
+  title,
+  ids,
+  names,
+  reasons,
+  empty,
+}: {
+  title: string;
+  ids: string[];
+  names: Map<string, string>;
+  reasons?: Job["scopeReasons"];
+  empty: string;
+}) {
+  return (
+    <div>
+      <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-muted">{title}</h2>
+      {ids.length ? (
+        <ul className="space-y-2">
+          {ids.map((id) => (
+            <li key={id} className="rounded-lg border border-edge bg-void/50 p-3">
+              <div className="text-xs font-medium">{names.get(id) ?? id}</div>
+              {reasons?.find((reason) => reason.repositoryId === id)?.reason && (
+                <p className="mt-1 text-[10px] leading-relaxed text-muted">
+                  {reasons.find((reason) => reason.repositoryId === id)?.reason}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-muted">{empty}</p>
+      )}
+    </div>
   );
 }
 
