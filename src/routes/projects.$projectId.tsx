@@ -1,20 +1,31 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { GitBranch, Plus, Search } from "lucide-react";
+import { GitBranch, Plus, Search, TriangleAlert } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { groupJobsByThread } from "@/lib/threads";
-import { formatTime, getJobs, getProject, jobTitle, projectRepositories } from "@/lib/api";
+import {
+  errorMessage,
+  formatTime,
+  getJobs,
+  getProject,
+  jobTitle,
+  projectRepositories,
+  updateProjectPromotionPolicy,
+  updateRepositoryPromotionPolicy,
+  type PromotionPolicy,
+} from "@/lib/api";
 export const Route = createFileRoute("/projects/$projectId")({
   head: () => ({ meta: [{ title: "Project — Command Center" }] }),
   component: ProjectDetail,
 });
 function ProjectDetail() {
   const { projectId } = Route.useParams();
+  const queryClient = useQueryClient();
   const [threadSearch, setThreadSearch] = useState("");
   const [threadFilter, setThreadFilter] = useState<ThreadFilter>("all");
   const [threadPage, setThreadPage] = useState(1);
@@ -23,6 +34,13 @@ function ProjectDetail() {
     queryFn: () => getProject(projectId),
   });
   const jobs = useQuery({ queryKey: ["jobs"], queryFn: getJobs, refetchInterval: 5000 });
+  const policyUpdate = useMutation({
+    mutationFn: (input: { repositoryId?: string; policy: PromotionPolicy | null }) =>
+      input.repositoryId
+        ? updateRepositoryPromotionPolicy(projectId, input.repositoryId, input.policy)
+        : updateProjectPromotionPolicy(projectId, input.policy as PromotionPolicy),
+    onSuccess: (updated) => queryClient.setQueryData(["project", projectId], updated),
+  });
   if (project.isPending)
     return (
       <AppShell title="Project">
@@ -87,6 +105,80 @@ function ProjectDetail() {
           </Link>
         </div>
         <div className="space-y-6">
+          <section className="rounded-xl border border-edge bg-surface p-4 lg:p-5">
+            <Heading title="Project Settings" meta="Backend enforced" />
+            <label className="block text-xs font-medium" htmlFor="project-promotion-policy">
+              Default promotion policy
+            </label>
+            <select
+              id="project-promotion-policy"
+              value={p.promotionPolicy ?? "review_required"}
+              disabled={policyUpdate.isPending}
+              onChange={(event) =>
+                policyUpdate.mutate({ policy: event.target.value as PromotionPolicy })
+              }
+              className="mt-2 min-h-11 w-full rounded-md border border-edge bg-void px-3 text-sm md:max-w-md"
+            >
+              <PolicyOptions />
+            </select>
+            {(p.promotionPolicy === "auto_push" ||
+              repos.some((repo) => repo.promotionPolicyOverride === "auto_push")) && (
+              <div className="mt-3 flex gap-2 rounded-lg border border-alert/40 bg-alert-soft p-3 text-xs text-alert">
+                <TriangleAlert className="size-4 shrink-0" />
+                <span>
+                  <strong>Auto-push is security-sensitive.</strong> Successfully validated agent
+                  changes are committed and pushed without human review. Failed, cancelled,
+                  conflicting, or unvalidated runs are never pushed.
+                </span>
+              </div>
+            )}
+            <div className="mt-4 space-y-2">
+              {repos.map((repo) => (
+                <div
+                  key={repo.id}
+                  className="grid gap-2 rounded-lg border border-edge p-3 md:grid-cols-[1fr_16rem] md:items-center"
+                >
+                  <div>
+                    <div className="text-sm font-medium">{repo.name}</div>
+                    <div className="mt-1 text-[10px] font-mono uppercase text-muted">
+                      Effective:{" "}
+                      {policyLabel(
+                        repo.effectivePromotionPolicy ?? p.promotionPolicy ?? "review_required",
+                      )}
+                    </div>
+                  </div>
+                  <select
+                    aria-label={`${repo.name} promotion policy override`}
+                    value={repo.promotionPolicyOverride ?? "inherit"}
+                    disabled={policyUpdate.isPending}
+                    onChange={(event) =>
+                      policyUpdate.mutate({
+                        repositoryId: repo.id,
+                        policy:
+                          event.target.value === "inherit"
+                            ? null
+                            : (event.target.value as PromotionPolicy),
+                      })
+                    }
+                    className="min-h-11 rounded-md border border-edge bg-void px-3 text-sm"
+                  >
+                    <option value="inherit">Inherit project default</option>
+                    <PolicyOptions />
+                  </select>
+                </div>
+              ))}
+            </div>
+            {policyUpdate.isError && (
+              <p role="alert" className="mt-3 text-xs text-danger">
+                Could not save policy: {errorMessage(policyUpdate.error)}
+              </p>
+            )}
+            {policyUpdate.isPending && (
+              <p aria-live="polite" className="mt-3 text-xs text-muted">
+                Saving policy…
+              </p>
+            )}
+          </section>
           <section>
             <Heading title="Repositories" meta={`${repos.length} connected`} />
             {repos.length === 0 ? (
@@ -254,3 +346,12 @@ function matchesThreadFilter(status: import("@/lib/api").JobStatus, filter: Thre
   if (filter === "needs_input") return status === "needs_input";
   return status === "done" || status === "failed" || status === "cancelled";
 }
+const policyLabel = (policy: PromotionPolicy) =>
+  ({ review_required: "Review & Push", auto_push: "Auto-push", read_only: "Read-only" })[policy];
+const PolicyOptions = () => (
+  <>
+    <option value="review_required">Review & Push</option>
+    <option value="auto_push">Auto-push</option>
+    <option value="read_only">Read-only</option>
+  </>
+);

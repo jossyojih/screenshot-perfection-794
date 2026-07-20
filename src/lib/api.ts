@@ -1,6 +1,7 @@
 export type Agent = "mock" | "codex" | "claude";
 export type JobStatus = "queued" | "running" | "needs_input" | "failed" | "cancelled" | "done";
 export type ScopeMode = "auto" | "manual" | "all";
+export type PromotionPolicy = "review_required" | "auto_push" | "read_only";
 export interface ScopeReason {
   repositoryId: string;
   reason: string;
@@ -11,6 +12,8 @@ export interface Repository {
   url?: string;
   defaultBranch?: string;
   status?: string;
+  promotionPolicyOverride?: PromotionPolicy;
+  effectivePromotionPolicy?: PromotionPolicy;
 }
 export interface Project {
   id: string;
@@ -19,6 +22,7 @@ export interface Project {
   repositories: Repository[];
   createdAt?: string;
   updatedAt?: string;
+  promotionPolicy?: PromotionPolicy;
 }
 export interface RepositoryResult {
   repositoryId?: string;
@@ -88,6 +92,7 @@ export interface ChangeRepository {
   additions: number;
   deletions: number;
   hasChanges: boolean;
+  effectivePromotionPolicy: PromotionPolicy;
 }
 export interface PromotionRepository {
   repositoryId: string;
@@ -242,6 +247,22 @@ export async function getProject(id: string) {
     "project",
     "data",
   ]);
+}
+export async function updateProjectPromotionPolicy(id: string, promotionPolicy: PromotionPolicy) {
+  return request<Project>(`/projects/${encodeURIComponent(id)}/promotion-policy`, {
+    method: "PUT",
+    body: JSON.stringify({ promotionPolicy }),
+  });
+}
+export async function updateRepositoryPromotionPolicy(
+  id: string,
+  repositoryId: string,
+  promotionPolicyOverride: PromotionPolicy | null,
+) {
+  return request<Project>(
+    `/projects/${encodeURIComponent(id)}/repositories/${encodeURIComponent(repositoryId)}/promotion-policy`,
+    { method: "PUT", body: JSON.stringify({ promotionPolicyOverride }) },
+  );
 }
 export async function getJobs() {
   return arrayPayload<Job>(await request<unknown>("/jobs"), ["jobs", "data"]);

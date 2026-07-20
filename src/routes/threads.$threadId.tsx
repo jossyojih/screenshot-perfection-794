@@ -757,7 +757,9 @@ function ReviewChanges({ jobId }: { jobId: string }) {
       changes.data.promotion
         ? changes.data.promotion.repositories.map((repo) => repo.repositoryId)
         : changes.data.repositories
-            .filter((repo) => repo.hasChanges)
+            .filter(
+              (repo) => repo.hasChanges && repo.effectivePromotionPolicy === "review_required",
+            )
             .map((repo) => repo.repositoryId),
     );
     if (changes.data.promotion) setMessage(changes.data.promotion.commitMessage);
@@ -804,9 +806,19 @@ function ReviewChanges({ jobId }: { jobId: string }) {
     );
   if (changes.isError) return <ErrorState error={changes.error} retry={() => changes.refetch()} />;
   const data = changes.data;
-  const promoted = data.promotion?.status === "promoted";
+  const reviewableRepositories = data.repositories.filter(
+    (repo) => repo.hasChanges && repo.effectivePromotionPolicy === "review_required",
+  );
+  const reviewable = reviewableRepositories.length > 0;
+  const promoted =
+    reviewable &&
+    reviewableRepositories.every((repo) =>
+      data.promotion?.repositories.some(
+        (result) => result.repositoryId === repo.repositoryId && result.status === "promoted",
+      ),
+    );
   const failed = data.promotion?.repositories.filter((repo) => repo.status === "failed") ?? [];
-  if (!open && data.hasChanges && !promoted)
+  if (!open && reviewable && !promoted)
     return (
       <button
         type="button"
@@ -816,7 +828,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
         <span>
           <span className="block text-sm font-semibold">Review changes</span>
           <span className="mt-1 block text-xs text-muted">
-            Inspect files and diffs before approving a Git push.
+            Awaiting review. Inspect files and diffs before approving a Git push.
           </span>
         </span>
         <GitPullRequest className="size-5 text-glow" aria-hidden="true" />
@@ -833,6 +845,42 @@ function ReviewChanges({ jobId }: { jobId: string }) {
         >
           Retry with different scope
         </a>
+      </section>
+    );
+  if (!reviewable && data.hasChanges)
+    return (
+      <section className="rounded-xl border border-edge bg-surface/50 p-4">
+        <h2 className="text-sm font-semibold">Promotion results</h2>
+        <div className="mt-3 space-y-2">
+          {data.repositories
+            .filter((repo) => repo.hasChanges)
+            .map((repo) => {
+              const result = data.promotion?.repositories.find(
+                (item) => item.repositoryId === repo.repositoryId,
+              );
+              const label =
+                repo.effectivePromotionPolicy === "read_only"
+                  ? "Read-only"
+                  : result?.status === "promoted"
+                    ? "Auto-pushed"
+                    : result?.status === "failed"
+                      ? "Auto-push failed"
+                      : "Auto-push pending";
+              return (
+                <div
+                  key={repo.repositoryId}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-edge p-3"
+                >
+                  <span className="text-sm">{repo.repositoryName}</span>
+                  <span
+                    className={`text-[10px] font-mono uppercase ${label === "Auto-pushed" ? "text-glow" : label.includes("failed") ? "text-danger" : "text-muted"}`}
+                  >
+                    {label}
+                  </span>
+                </div>
+              );
+            })}
+        </div>
       </section>
     );
   return (
@@ -901,7 +949,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                   className="min-w-0 overflow-hidden rounded-lg border border-edge bg-void/50"
                 >
                   <div className="flex min-w-0 items-start gap-3 p-3 lg:p-4">
-                    {!promoted && (
+                    {!promoted && repo.effectivePromotionPolicy === "review_required" && (
                       <input
                         type="checkbox"
                         className="size-5 shrink-0 accent-[var(--glow)]"
@@ -926,6 +974,21 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                       </div>
                       <div className="mt-1 break-all text-[10px] font-mono text-muted">
                         target: {repo.targetBranch} · base: {repo.baseCommitSha.slice(0, 12)}
+                      </div>
+                      <div
+                        className={`mt-2 text-[10px] font-mono uppercase ${repo.effectivePromotionPolicy === "auto_push" ? (result?.status === "failed" ? "text-danger" : "text-glow") : repo.effectivePromotionPolicy === "read_only" ? "text-muted" : "text-alert"}`}
+                      >
+                        {repo.effectivePromotionPolicy === "auto_push"
+                          ? result?.status === "promoted"
+                            ? "Auto-pushed"
+                            : result?.status === "failed"
+                              ? "Auto-push failed"
+                              : "Auto-push pending"
+                          : repo.effectivePromotionPolicy === "read_only"
+                            ? "Read-only"
+                            : result?.status === "failed"
+                              ? "Push failed"
+                              : "Awaiting review"}
                       </div>
                       {result && (
                         <div
@@ -967,7 +1030,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                 </article>
               );
             })}
-          {!promoted && (
+          {!promoted && reviewable && (
             <div className="sticky bottom-3 z-20 space-y-3 rounded-lg border border-glow/40 bg-void/95 p-3 shadow-xl backdrop-blur lg:static lg:border-edge lg:bg-transparent lg:p-4 lg:shadow-none">
               <label
                 htmlFor={`commit-${jobId}`}
