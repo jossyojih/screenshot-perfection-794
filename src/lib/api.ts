@@ -71,6 +71,49 @@ export interface JobEvent {
 export interface LoginCredentials {
   password: string;
 }
+export type PromotionStatus = "pending" | "promoting" | "promoted" | "failed";
+export interface ChangeFile {
+  path: string;
+  additions: number;
+  deletions: number;
+  diff: string;
+  truncated: boolean;
+}
+export interface ChangeRepository {
+  repositoryId: string;
+  repositoryName: string;
+  baseCommitSha: string;
+  targetBranch: string;
+  changedFiles: ChangeFile[];
+  additions: number;
+  deletions: number;
+  hasChanges: boolean;
+}
+export interface PromotionRepository {
+  repositoryId: string;
+  status: PromotionStatus;
+  commitSha?: string;
+  targetBranch: string;
+  error?: string;
+  conflict?: boolean;
+  updatedAt: string;
+}
+export interface Promotion {
+  id: string;
+  jobId: string;
+  commitMessage: string;
+  status: PromotionStatus;
+  createdAt: string;
+  updatedAt: string;
+  repositories: PromotionRepository[];
+}
+export interface JobChanges {
+  jobId: string;
+  hasChanges: boolean;
+  repositories: ChangeRepository[];
+  promotion?: Promotion;
+  limits: { totalDiffBytes: number; perFileDiffBytes: number };
+}
 
 const configuredApi = import.meta.env.VITE_RUNNER_API_URL?.trim();
 if (!configuredApi) throw new Error("VITE_RUNNER_API_URL is required");
@@ -245,6 +288,19 @@ export async function continueJob(id: string, message: string, requestId: string
     }),
     ["job", "data"],
   );
+}
+export async function getJobChanges(id: string) {
+  return request<JobChanges>(`/jobs/${encodeURIComponent(id)}/changes`);
+}
+export async function promoteJob(
+  id: string,
+  commitMessage: string,
+  approvedRepositoryIds: string[],
+) {
+  return request<Promotion>(`/jobs/${encodeURIComponent(id)}/promotions`, {
+    method: "POST",
+    body: JSON.stringify({ commitMessage, approvedRepositoryIds }),
+  });
 }
 export const projectRepositories = (project: Project) => {
   const raw = project.repositories ?? (project as unknown as { repos?: unknown[] }).repos ?? [];

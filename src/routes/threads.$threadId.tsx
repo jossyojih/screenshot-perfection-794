@@ -1,7 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  GitCommitHorizontal,
+  GitPullRequest,
+  TriangleAlert,
+} from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
@@ -14,9 +20,12 @@ import {
   getJob,
   getConversation,
   getProject,
+  getJobChanges,
   jobTitle,
   projectRepositories,
   replyToJob,
+  promoteJob,
+  type JobChanges,
   type Job,
   type JobEvent,
   authenticatedFetch,
@@ -403,6 +412,7 @@ function ThreadPage() {
           </div>
         )}
         {completed && finalResponse}
+        {j.status === "done" && <ReviewChanges jobId={j.id} />}
         <section className="overflow-hidden rounded-xl border border-edge bg-surface/40">
           <h2>
             <button
@@ -531,6 +541,271 @@ function ThreadPage() {
         )}
       </Page>
     </AppShell>
+  );
+}
+
+function ReviewChanges({ jobId }: { jobId: string }) {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [message, setMessage] = useState("");
+  const [selected, setSelected] = useState<string[]>([]);
+  const changes = useQuery({
+    queryKey: ["job-changes", jobId],
+    queryFn: () => getJobChanges(jobId),
+  });
+  useEffect(() => {
+    if (!changes.data || selected.length) return;
+    setSelected(
+      changes.data.promotion
+        ? changes.data.promotion.repositories.map((repo) => repo.repositoryId)
+        : changes.data.repositories
+            .filter((repo) => repo.hasChanges)
+            .map((repo) => repo.repositoryId),
+    );
+    if (changes.data.promotion) setMessage(changes.data.promotion.commitMessage);
+  }, [changes.data, selected.length]);
+  const promotion = useMutation({
+    mutationFn: () => promoteJob(jobId, message.trim(), selected),
+    onSettled: async () => {
+      setConfirming(false);
+      await queryClient.invalidateQueries({ queryKey: ["job-changes", jobId] });
+    },
+  });
+  if (changes.isPending)
+    return (
+      <section className="rounded-xl border border-glow/30 bg-glow-soft p-4 text-sm text-muted">
+        Checking for reviewable changes…
+      </section>
+    );
+  if (changes.isError) return <ErrorState error={changes.error} retry={() => changes.refetch()} />;
+  const data = changes.data;
+  const promoted = data.promotion?.status === "promoted";
+  const failed = data.promotion?.repositories.filter((repo) => repo.status === "failed") ?? [];
+  if (!open && data.hasChanges && !promoted)
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-between rounded-xl border-2 border-glow/60 bg-glow-soft p-4 text-left shadow-glow transition hover:border-glow lg:p-5"
+      >
+        <span>
+          <span className="block text-sm font-semibold">Review changes</span>
+          <span className="mt-1 block text-xs text-muted">
+            Inspect files and diffs before approving a Git push.
+          </span>
+        </span>
+        <GitPullRequest className="size-5 text-glow" aria-hidden="true" />
+      </button>
+    );
+  if (!data.hasChanges && !data.promotion)
+    return (
+      <section className="rounded-xl border border-edge bg-surface/50 p-4">
+        <div className="text-sm font-medium">No changes to promote</div>
+        <p className="mt-1 text-xs text-muted">This job did not modify any repository files.</p>
+      </section>
+    );
+  return (
+    <section className="overflow-hidden rounded-xl border border-edge bg-surface/60">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-edge p-4 lg:p-5">
+        <div>
+          <h2 className="text-sm font-semibold">Review changes</h2>
+          <p className="mt-1 text-xs text-muted">
+            Only selected repositories will be committed and pushed.
+          </p>
+        </div>
+        {!promoted && (
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            className="text-[10px] font-mono uppercase text-muted"
+          >
+            {open ? "Collapse" : "Open review"}
+          </button>
+        )}
+      </div>
+      {promoted && (
+        <div className="border-b border-glow/30 bg-glow-soft p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-glow">
+            <CheckCircle2 className="size-4" /> Pushed to GitHub
+          </div>
+          <p className="mt-1 text-xs text-muted">
+            Source changes were pushed. Deployment status is not tracked here.
+          </p>
+        </div>
+      )}
+      {failed.length > 0 && (
+        <div className="border-b border-alert/30 bg-alert-soft p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-alert">
+            <TriangleAlert className="size-4" />{" "}
+            {failed.some((r) => r.conflict) ? "Push conflict" : "Push failed"}
+          </div>
+          {failed.map((r) => (
+            <p key={r.repositoryId} className="mt-1 text-xs text-muted">
+              {r.error}
+            </p>
+          ))}
+        </div>
+      )}
+      {(open || promoted || failed.length > 0) && (
+        <div className="space-y-4 p-4 lg:p-5">
+          {data.repositories
+            .filter(
+              (repo) =>
+                repo.hasChanges ||
+                data.promotion?.repositories.some((r) => r.repositoryId === repo.repositoryId),
+            )
+            .map((repo) => {
+              const result = data.promotion?.repositories.find(
+                (r) => r.repositoryId === repo.repositoryId,
+              );
+              const checked = selected.includes(repo.repositoryId);
+              return (
+                <article
+                  key={repo.repositoryId}
+                  className="rounded-lg border border-edge bg-void/50"
+                >
+                  <div className="flex items-start gap-3 p-3 lg:p-4">
+                    {!promoted && (
+                      <input
+                        type="checkbox"
+                        className="mt-1 size-4 accent-[var(--glow)]"
+                        checked={checked}
+                        disabled={promotion.isPending || result?.status === "promoted"}
+                        onChange={(event) =>
+                          setSelected((current) =>
+                            event.target.checked
+                              ? [...current, repo.repositoryId]
+                              : current.filter((id) => id !== repo.repositoryId),
+                          )
+                        }
+                        aria-label={`Approve ${repo.repositoryName}`}
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="font-medium">{repo.repositoryName}</h3>
+                        <span className="font-mono text-[10px] text-muted">
+                          +{repo.additions} / −{repo.deletions}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-[10px] font-mono text-muted">
+                        target: {repo.targetBranch} · base: {repo.baseCommitSha.slice(0, 12)}
+                      </div>
+                      {result && (
+                        <div
+                          className={`mt-2 text-[10px] font-mono uppercase ${result.status === "promoted" ? "text-glow" : result.conflict ? "text-alert" : "text-danger"}`}
+                        >
+                          {result.status === "promoted"
+                            ? "Pushed to GitHub"
+                            : result.conflict
+                              ? "Conflict"
+                              : result.status}
+                          {result.commitSha ? ` · ${result.commitSha.slice(0, 12)}` : ""}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="border-t border-edge">
+                    {repo.changedFiles.map((file) => (
+                      <details key={file.path} className="border-b border-edge last:border-0">
+                        <summary className="cursor-pointer break-all px-3 py-2 font-mono text-xs lg:px-4">
+                          {file.path}{" "}
+                          <span className="text-muted">
+                            +{file.additions} −{file.deletions}
+                          </span>
+                        </summary>
+                        <pre className="max-h-[32rem] overflow-auto border-t border-edge bg-black/30 p-3 text-[11px] leading-relaxed">
+                          <code>{file.diff || "Binary file or metadata-only change"}</code>
+                        </pre>
+                        {file.truncated && (
+                          <p className="border-t border-edge px-3 py-2 text-[10px] text-alert">
+                            Diff truncated by server safety limit.
+                          </p>
+                        )}
+                      </details>
+                    ))}
+                  </div>
+                </article>
+              );
+            })}
+          {!promoted && (
+            <div className="space-y-3 rounded-lg border border-edge p-3 lg:p-4">
+              <label
+                htmlFor={`commit-${jobId}`}
+                className="block text-[10px] font-mono uppercase tracking-widest text-muted"
+              >
+                Commit message
+              </label>
+              <textarea
+                id={`commit-${jobId}`}
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                maxLength={500}
+                rows={3}
+                placeholder="Describe the approved changes"
+                className="w-full resize-y rounded-md border border-edge bg-void px-3 py-2 text-sm focus:border-glow focus:outline-none"
+              />
+              <button
+                type="button"
+                disabled={
+                  (!data.hasChanges && failed.length === 0) ||
+                  selected.length === 0 ||
+                  !message.trim() ||
+                  promotion.isPending
+                }
+                onClick={() => setConfirming(true)}
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-glow px-4 text-sm font-semibold text-void disabled:bg-edge disabled:text-muted"
+              >
+                <GitCommitHorizontal className="size-4" />
+                {promotion.isPending
+                  ? "Promoting…"
+                  : failed.length
+                    ? "Retry failed repositories"
+                    : "Approve & Push"}
+              </button>
+              {promotion.isError && (
+                <p className="text-xs text-danger">{errorMessage(promotion.error)}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      {confirming && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby={`confirm-${jobId}`}
+          className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4"
+        >
+          <div className="w-full max-w-md rounded-xl border border-edge bg-void p-5 shadow-2xl">
+            <h3 id={`confirm-${jobId}`} className="text-lg font-semibold">
+              Approve and push?
+            </h3>
+            <p className="mt-2 text-sm text-muted">
+              This will commit the selected job changes and push them to {selected.length} target{" "}
+              {selected.length === 1 ? "branch" : "branches"}. It does not deploy them.
+            </p>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                className="rounded-md border border-edge px-4 py-2 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => promotion.mutate()}
+                className="rounded-md bg-glow px-4 py-2 text-sm font-semibold text-void"
+              >
+                Approve & Push
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
