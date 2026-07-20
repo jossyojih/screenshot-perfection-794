@@ -182,7 +182,7 @@ function OverviewPage() {
 }
 
 const Page = ({ children }: { children: ReactNode }) => (
-  <div className="mx-auto max-w-[1440px] px-4 py-5 lg:px-8 lg:py-8">{children}</div>
+  <div className="mx-auto min-w-0 max-w-[1440px] px-4 py-5 lg:px-8 lg:py-8">{children}</div>
 );
 
 function Metric({
@@ -205,9 +205,9 @@ function Metric({
           ? "text-danger"
           : "text-muted";
   return (
-    <div className="rounded-xl border border-edge bg-surface/70 p-3 lg:p-4">
+    <div className="min-w-0 rounded-xl border border-edge bg-surface/70 p-3 lg:p-4">
       <div className="flex items-start justify-between gap-2">
-        <span className="text-[9px] font-mono uppercase tracking-wider text-muted lg:text-[10px] lg:tracking-widest">
+        <span className="min-w-0 text-[9px] font-mono uppercase tracking-wider text-muted lg:text-[10px] lg:tracking-widest">
           {label}
         </span>
         <span className={`${toneClass} [&>svg]:size-3.5 lg:[&>svg]:size-4`}>{icon}</span>
@@ -229,8 +229,10 @@ function SectionHeading({
   meta?: string;
 }) {
   return (
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <h2 className="text-[11px] font-mono uppercase tracking-widest text-muted">{title}</h2>
+    <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-2 sm:gap-3">
+      <h2 className="min-w-0 text-[11px] font-mono uppercase tracking-widest text-muted">
+        {title}
+      </h2>
       {meta ? (
         <span className="shrink-0 text-[10px] font-mono text-muted">{meta}</span>
       ) : viewAll ? (
@@ -297,7 +299,7 @@ function ThreadSection({
       </div>
       {showDisplayCount && pageCount > 1 && (
         <nav
-          className="mt-3 flex items-center justify-between gap-3"
+          className="mt-3 grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:gap-3"
           aria-label={`${title} pagination`}
         >
           <Button
@@ -309,7 +311,7 @@ function ThreadSection({
           >
             Previous
           </Button>
-          <span className="text-[10px] font-mono text-muted" aria-live="polite">
+          <span className="min-w-0 text-center text-[10px] font-mono text-muted" aria-live="polite">
             Page {currentPage} of {pageCount}
           </span>
           <Button
@@ -352,11 +354,11 @@ function ThreadCard({
     <Link
       to="/threads/$threadId"
       params={{ threadId: latest.id }}
-      className="block rounded-xl border border-edge bg-surface p-4 hover:border-glow/30"
+      className="block min-w-0 rounded-xl border border-edge bg-surface p-4 hover:border-glow/30"
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
-          <div className="mb-1 text-[10px] font-mono uppercase tracking-widest text-muted">
+          <div className="mb-1 break-words text-[10px] font-mono uppercase tracking-widest text-muted">
             {project?.name ?? latest.projectId} · {latest.agent}
             {model ? `/${model}` : ""}
           </div>
@@ -375,7 +377,7 @@ function ThreadCard({
             {thread.runCount === 1 ? "run" : "runs"}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">
           <StatusDot status={latest.status} />
           <StatusPill status={latest.status} />
         </div>
@@ -397,12 +399,12 @@ function ProjectCard({ project, threads }: { project: Project; threads: Conversa
     <Link
       to="/projects/$projectId"
       params={{ projectId: project.id }}
-      className="group rounded-xl border border-edge bg-surface p-4 hover:border-glow/40"
+      className="group min-w-0 rounded-xl border border-edge bg-surface p-4 hover:border-glow/40"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">{project.name}</div>
-          <div className="mt-1 text-[10px] font-mono text-muted">
+          <div className="mt-1 break-words text-[10px] font-mono text-muted">
             {projectRepositories(project).length} repos · {running} running · {attention} attention
           </div>
           <div className="mt-2 text-[9px] font-mono text-muted">
@@ -438,12 +440,12 @@ function RunnerHealth({
     <section>
       <SectionHeading title="Runner health" count={queued + running} />
       <div className="rounded-xl border border-edge bg-surface p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          <div className="flex min-w-0 items-center gap-2">
             <Activity className={unavailable ? "size-4 text-danger" : "size-4 text-glow"} />
             <span className="text-sm font-medium capitalize">{status}</span>
           </div>
-          <span className="text-[9px] font-mono uppercase tracking-widest text-muted">
+          <span className="break-words text-[9px] font-mono uppercase tracking-widest text-muted sm:text-right">
             Public health endpoint
           </span>
         </div>

@@ -33,10 +33,10 @@ export function AppShell({
 
       <div className="min-h-screen lg:pl-64">
         <header className="sticky top-0 z-30 border-b border-edge bg-void/85 backdrop-blur-xl">
-          <div className="flex h-[68px] items-center justify-between px-4 lg:px-8">
-            <Link to="/" className="flex items-center gap-2 lg:hidden">
-              <span className="size-2 rounded-full bg-glow shadow-[var(--shadow-glow)]" />
-              <span className="text-xs font-mono tracking-widest uppercase text-muted">
+          <div className="flex h-[68px] min-w-0 items-center justify-between gap-3 px-4 lg:px-8">
+            <Link to="/" className="flex min-w-0 items-center gap-2 lg:hidden">
+              <span className="size-2 shrink-0 rounded-full bg-glow shadow-[var(--shadow-glow)]" />
+              <span className="truncate text-xs font-mono tracking-widest uppercase text-muted">
                 {title}
               </span>
             </Link>
@@ -48,7 +48,7 @@ export function AppShell({
               <h1 className="mt-1 truncate text-sm font-medium">{title}</h1>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               {headerRight}
               <NotificationBell />
               <ThemeToggle />

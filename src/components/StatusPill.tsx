@@ -20,7 +20,9 @@ const colorClass: Record<JobStatus, string> = {
 
 export function StatusPill({ status }: { status: JobStatus }) {
   return (
-    <span className={`text-[10px] font-mono tracking-wider ${colorClass[status]}`}>
+    <span
+      className={`max-w-full break-words text-[10px] font-mono tracking-wider ${colorClass[status]}`}
+    >
       {threadStatusLabel[status]}
     </span>
   );
