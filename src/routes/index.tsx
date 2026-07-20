@@ -144,10 +144,11 @@ function OverviewPage() {
               detail="running"
             />
             <ThreadSection
-              title="Recently completed"
+              title="Recently completed threads"
               threads={completed}
               projects={projectMap}
               empty="No threads have completed yet."
+              showDisplayCount
             />
           </div>
 
@@ -219,15 +220,19 @@ function SectionHeading({
   title,
   count,
   viewAll,
+  meta,
 }: {
   title: string;
   count: number;
   viewAll?: "/projects" | "/logs";
+  meta?: string;
 }) {
   return (
     <div className="mb-3 flex items-center justify-between gap-3">
       <h2 className="text-[11px] font-mono uppercase tracking-widest text-muted">{title}</h2>
-      {viewAll ? (
+      {meta ? (
+        <span className="shrink-0 text-[10px] font-mono text-muted">{meta}</span>
+      ) : viewAll ? (
         <Link to={viewAll} className="text-[10px] font-mono text-muted hover:text-glow">
           View all
         </Link>
@@ -245,6 +250,7 @@ function ThreadSection({
   empty,
   viewAll = false,
   detail,
+  showDisplayCount = false,
 }: {
   title: string;
   threads: ConversationThread[];
@@ -252,6 +258,7 @@ function ThreadSection({
   empty: string;
   viewAll?: boolean;
   detail?: "running";
+  showDisplayCount?: boolean;
 }) {
   return (
     <section>
@@ -259,6 +266,11 @@ function ThreadSection({
         title={title}
         count={threads.length}
         viewAll={viewAll ? "/logs" : undefined}
+        meta={
+          showDisplayCount
+            ? `Displaying ${Math.min(threads.length, SECTION_LIMIT)} of ${threads.length}`
+            : undefined
+        }
       />
       <div className="space-y-3">
         {threads.length === 0 ? (
@@ -324,7 +336,8 @@ function ThreadCard({
             </div>
           )}
           <div className="mt-2 text-[9px] font-mono text-muted">
-            {formatTime(thread.activityAt)}
+            {formatTime(thread.activityAt)} · {thread.runCount}{" "}
+            {thread.runCount === 1 ? "run" : "runs"}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
