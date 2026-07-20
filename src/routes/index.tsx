@@ -90,9 +90,9 @@ function OverviewPage() {
   return (
     <AppShell title="Overview">
       <Page>
-        <div className="mb-6 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-mono uppercase tracking-[.22em] text-glow">
+        <div className="mb-6 flex min-w-0 flex-col items-start gap-3 min-[360px]:flex-row min-[360px]:items-end min-[360px]:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-mono uppercase tracking-[.18em] text-glow sm:tracking-[.22em]">
               Live workspace
             </p>
             <h2 className="mt-2 text-xl font-semibold lg:text-2xl">Engineering overview</h2>
@@ -102,7 +102,7 @@ function OverviewPage() {
           </div>
           <Link
             to="/compose"
-            className="flex shrink-0 items-center gap-2 text-xs font-mono uppercase tracking-widest text-glow"
+            className="flex min-h-11 max-w-full items-center gap-2 rounded-lg border border-glow/30 bg-glow-soft px-4 text-sm font-mono uppercase tracking-wider text-glow min-[360px]:shrink-0"
           >
             <span className="hidden sm:inline">Dispatch task</span>
             <span className="sm:hidden">Dispatch</span>
@@ -110,7 +110,7 @@ function OverviewPage() {
           </Link>
         </div>
 
-        <section className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 lg:gap-3">
+        <section className="mb-6 grid min-w-0 grid-cols-1 gap-3 min-[360px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           <Metric label="Active projects" value={activeProjectIds.size} icon={<FolderGit2 />} />
           <Metric label="Running threads" value={running.length} icon={<CircleDot />} tone="glow" />
           <Metric
@@ -129,7 +129,7 @@ function OverviewPage() {
         </section>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,.85fr)]">
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             <ThreadSection
               title="Needs your attention"
               threads={attention}
@@ -153,7 +153,7 @@ function OverviewPage() {
             />
           </div>
 
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             <section>
               <SectionHeading title="Projects" count={projects.length} viewAll="/projects" />
               <div className="grid gap-3">
@@ -182,7 +182,9 @@ function OverviewPage() {
 }
 
 const Page = ({ children }: { children: ReactNode }) => (
-  <div className="mx-auto min-w-0 max-w-[1440px] px-4 py-5 lg:px-8 lg:py-8">{children}</div>
+  <div className="mx-auto w-full min-w-0 max-w-[1440px] px-3 py-5 min-[360px]:px-4 lg:px-8 lg:py-8">
+    {children}
+  </div>
 );
 
 function Metric({
@@ -205,9 +207,9 @@ function Metric({
           ? "text-danger"
           : "text-muted";
   return (
-    <div className="min-w-0 rounded-xl border border-edge bg-surface/70 p-3 lg:p-4">
+    <div className="min-w-0 rounded-xl border border-edge bg-surface/70 p-4">
       <div className="flex items-start justify-between gap-2">
-        <span className="min-w-0 text-[9px] font-mono uppercase tracking-wider text-muted lg:text-[10px] lg:tracking-widest">
+        <span className="min-w-0 break-words text-xs font-mono uppercase leading-5 tracking-wider text-muted">
           {label}
         </span>
         <span className={`${toneClass} [&>svg]:size-3.5 lg:[&>svg]:size-4`}>{icon}</span>
@@ -230,17 +232,22 @@ function SectionHeading({
 }) {
   return (
     <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-2 sm:gap-3">
-      <h2 className="min-w-0 text-[11px] font-mono uppercase tracking-widest text-muted">
+      <h2 className="min-w-0 text-xs font-mono uppercase leading-5 tracking-wider text-muted sm:tracking-widest">
         {title}
       </h2>
       {meta ? (
-        <span className="shrink-0 text-[10px] font-mono text-muted">{meta}</span>
+        <span className="max-w-full break-words text-xs font-mono text-muted sm:shrink-0">
+          {meta}
+        </span>
       ) : viewAll ? (
-        <Link to={viewAll} className="text-[10px] font-mono text-muted hover:text-glow">
+        <Link
+          to={viewAll}
+          className="flex min-h-11 items-center text-xs font-mono text-muted hover:text-glow"
+        >
           View all
         </Link>
       ) : (
-        <span className="text-[10px] font-mono text-muted">{count}</span>
+        <span className="text-xs font-mono text-muted">{count}</span>
       )}
     </div>
   );
@@ -304,19 +311,19 @@ function ThreadSection({
         >
           <Button
             type="button"
-            size="sm"
+            className="h-11 px-3"
             variant="outline"
             disabled={currentPage === 1}
             onClick={() => setPage((value) => Math.max(1, value - 1))}
           >
             Previous
           </Button>
-          <span className="min-w-0 text-center text-[10px] font-mono text-muted" aria-live="polite">
+          <span className="min-w-0 text-center text-xs font-mono text-muted" aria-live="polite">
             Page {currentPage} of {pageCount}
           </span>
           <Button
             type="button"
-            size="sm"
+            className="h-11 px-3"
             variant="outline"
             disabled={currentPage === pageCount}
             onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
@@ -358,13 +365,15 @@ function ThreadCard({
     >
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
-          <div className="mb-1 break-words text-[10px] font-mono uppercase tracking-widest text-muted">
+          <div className="mb-1 break-words text-xs font-mono uppercase leading-5 tracking-wider text-muted sm:tracking-widest">
             {project?.name ?? latest.projectId} · {latest.agent}
             {model ? `/${model}` : ""}
           </div>
-          <div className="truncate text-sm font-medium">{jobTitle(thread.initialRun)}</div>
+          <div className="break-words text-base font-medium leading-6">
+            {jobTitle(thread.initialRun)}
+          </div>
           {showRunningDetail && (
-            <div className="mt-2 line-clamp-1 text-xs text-muted">
+            <div className="mt-2 break-words text-sm leading-5 text-muted">
               {jobTitle(latest)} · {repositoryIds.length} repo
               {repositoryIds.length === 1 ? "" : "s"}
               {repositoryIds.length > 0
@@ -372,7 +381,7 @@ function ThreadCard({
                 : ""}
             </div>
           )}
-          <div className="mt-2 text-[9px] font-mono text-muted">
+          <div className="mt-2 break-words text-xs font-mono leading-5 text-muted">
             {formatTime(thread.activityAt)} · {thread.runCount}{" "}
             {thread.runCount === 1 ? "run" : "runs"}
           </div>
@@ -403,11 +412,11 @@ function ProjectCard({ project, threads }: { project: Project; threads: Conversa
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-sm font-medium">{project.name}</div>
-          <div className="mt-1 break-words text-[10px] font-mono text-muted">
+          <div className="break-words text-base font-medium leading-6">{project.name}</div>
+          <div className="mt-1 break-words text-xs font-mono leading-5 text-muted">
             {projectRepositories(project).length} repos · {running} running · {attention} attention
           </div>
-          <div className="mt-2 text-[9px] font-mono text-muted">
+          <div className="mt-2 break-words text-xs font-mono leading-5 text-muted">
             Last activity {lastActivity ? formatTime(lastActivity) : "—"}
           </div>
         </div>
@@ -439,24 +448,24 @@ function RunnerHealth({
   return (
     <section>
       <SectionHeading title="Runner health" count={queued + running} />
-      <div className="rounded-xl border border-edge bg-surface p-4">
+      <div className="min-w-0 rounded-xl border border-edge bg-surface p-4">
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <Activity className={unavailable ? "size-4 text-danger" : "size-4 text-glow"} />
             <span className="text-sm font-medium capitalize">{status}</span>
           </div>
-          <span className="break-words text-[9px] font-mono uppercase tracking-widest text-muted sm:text-right">
+          <span className="break-words text-xs font-mono uppercase leading-5 tracking-wider text-muted sm:text-right sm:tracking-widest">
             Public health endpoint
           </span>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 border-t border-edge pt-4 text-center">
-          <div>
+          <div className="min-w-0">
             <div className="text-lg font-semibold">{queued}</div>
-            <div className="text-[9px] font-mono uppercase tracking-widest text-muted">Queued</div>
+            <div className="text-xs font-mono uppercase tracking-wider text-muted">Queued</div>
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="text-lg font-semibold">{running}</div>
-            <div className="text-[9px] font-mono uppercase tracking-widest text-muted">Running</div>
+            <div className="text-xs font-mono uppercase tracking-wider text-muted">Running</div>
           </div>
         </div>
       </div>
