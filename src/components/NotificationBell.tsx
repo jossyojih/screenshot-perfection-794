@@ -1,11 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { getJobs } from "@/lib/api";
+import { groupJobsByThread } from "@/lib/threads";
 
 export function NotificationBell() {
   const { data = [] } = useQuery({ queryKey: ["jobs"], queryFn: getJobs, refetchInterval: 5000 });
-  const needsInput = data.filter((job) => job.status === "needs_input").length;
-  const failed = data.filter((job) => job.status === "failed").length;
+  const threads = groupJobsByThread(data);
+  const needsInput = threads.filter((thread) => thread.latestRun.status === "needs_input").length;
+  const failed = threads.filter((thread) => thread.latestRun.status === "failed").length;
   const total = needsInput + failed;
 
   const tone =
@@ -18,7 +20,7 @@ export function NotificationBell() {
   return (
     <Link
       to="/"
-      aria-label={`${total} notifications`}
+      aria-label={`${total} thread${total === 1 ? "" : "s"} need attention. View overview.`}
       className={`relative px-2 py-0.5 rounded border flex items-center gap-1.5 transition-colors ${tone}`}
     >
       <BellIcon />

@@ -190,6 +190,14 @@ export async function getProject(id: string) {
 export async function getJobs() {
   return arrayPayload<Job>(await request<unknown>("/jobs"), ["jobs", "data"]);
 }
+export async function getRunnerHealth() {
+  const response = await fetch(apiUrl("/health"), { cache: "no-store" });
+  if (!response.ok) throw new Error(`Health check failed (${response.status})`);
+  const contentType = response.headers.get("content-type") ?? "";
+  return contentType.includes("application/json")
+    ? ((await response.json()) as Record<string, unknown>)
+    : { status: await response.text() };
+}
 export async function getJob(id: string) {
   return objectPayload<Job>(await request<unknown>(`/jobs/${encodeURIComponent(id)}`), [
     "job",

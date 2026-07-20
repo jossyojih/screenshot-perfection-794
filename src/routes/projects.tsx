@@ -4,6 +4,7 @@ import { ArrowUpRight, FolderGit2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { getJobs, getProjects, projectRepositories } from "@/lib/api";
+import { groupJobsByThread } from "@/lib/threads";
 
 export const Route = createFileRoute("/projects")({
   head: () => ({ meta: [{ title: "Projects — Command Center" }] }),
@@ -20,6 +21,7 @@ function ProjectsPage() {
 function ProjectsList() {
   const projects = useQuery({ queryKey: ["projects"], queryFn: getProjects });
   const jobs = useQuery({ queryKey: ["jobs"], queryFn: getJobs });
+  const threads = groupJobsByThread(jobs.data ?? []);
   return (
     <AppShell title="Projects">
       <div className="mx-auto max-w-[1440px] px-4 py-5 lg:px-8 lg:py-8">
@@ -41,9 +43,10 @@ function ProjectsList() {
           <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
             {projects.data.map((p) => {
               const repos = projectRepositories(p);
-              const active = (jobs.data ?? []).filter(
-                (j) =>
-                  j.projectId === p.id && ["queued", "running", "needs_input"].includes(j.status),
+              const active = threads.filter(
+                (thread) =>
+                  thread.latestRun.projectId === p.id &&
+                  ["queued", "running", "needs_input"].includes(thread.latestRun.status),
               ).length;
               return (
                 <Link

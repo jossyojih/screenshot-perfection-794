@@ -7,14 +7,8 @@ import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  formatTime,
-  getJobs,
-  getProject,
-  jobTitle,
-  projectRepositories,
-  type Job,
-} from "@/lib/api";
+import { groupJobsByThread } from "@/lib/threads";
+import { formatTime, getJobs, getProject, jobTitle, projectRepositories } from "@/lib/api";
 export const Route = createFileRoute("/projects/$projectId")({
   head: () => ({ meta: [{ title: "Project — Command Center" }] }),
   component: ProjectDetail,
@@ -244,14 +238,6 @@ const Heading = ({ title, meta }: { title: string; meta: string }) => (
   </div>
 );
 
-type ProjectThread = {
-  key: string;
-  initialRun: Job;
-  latestRun: Job;
-  runCount: number;
-  agents: Job["agent"][];
-};
-
 type ThreadFilter = "all" | "active" | "needs_input" | "completed";
 
 const THREADS_PER_PAGE = 8;
@@ -262,52 +248,9 @@ const THREAD_FILTERS: { value: ThreadFilter; label: string }[] = [
   { value: "completed", label: "Completed" },
 ];
 
-function matchesThreadFilter(status: Job["status"], filter: ThreadFilter) {
+function matchesThreadFilter(status: import("@/lib/api").JobStatus, filter: ThreadFilter) {
   if (filter === "all") return true;
   if (filter === "active") return status === "queued" || status === "running";
   if (filter === "needs_input") return status === "needs_input";
   return status === "done" || status === "failed" || status === "cancelled";
-}
-
-function groupJobsByThread(jobs: Job[]): ProjectThread[] {
-  const jobsById = new Map(jobs.map((job) => [job.id, job]));
-  const groups = new Map<string, Job[]>();
-
-  const threadKey = (job: Job) => {
-    if (job.threadId) return job.threadId;
-
-    let current = job;
-    const visited = new Set([job.id]);
-    while (current.parentJobId && !visited.has(current.parentJobId)) {
-      const parent = jobsById.get(current.parentJobId);
-      if (!parent) return current.parentJobId;
-      if (parent.threadId) return parent.threadId;
-      visited.add(parent.id);
-      current = parent;
-    }
-    return current.id;
-  };
-
-  for (const job of jobs) {
-    const key = threadKey(job);
-    groups.set(key, [...(groups.get(key) ?? []), job]);
-  }
-
-  const timestamp = (job: Job, preferUpdated = false) =>
-    Date.parse(
-      (preferUpdated ? (job.updatedAt ?? job.createdAt) : (job.createdAt ?? job.updatedAt)) ?? "",
-    ) || 0;
-
-  return [...groups.entries()]
-    .map(([key, runs]) => {
-      const orderedByCreation = [...runs].sort((a, b) => timestamp(a) - timestamp(b));
-      return {
-        key,
-        initialRun: orderedByCreation[0],
-        latestRun: orderedByCreation.at(-1)!,
-        runCount: runs.length,
-        agents: [...new Set(runs.map((run) => run.agent))],
-      };
-    })
-    .sort((a, b) => timestamp(b.latestRun, true) - timestamp(a.latestRun, true));
 }
