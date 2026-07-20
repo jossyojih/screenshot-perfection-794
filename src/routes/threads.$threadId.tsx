@@ -1,11 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   ChevronDown,
   GitCommitHorizontal,
   GitPullRequest,
+  LoaderCircle,
   TriangleAlert,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
@@ -731,6 +732,8 @@ function ReviewChanges({ jobId }: { jobId: string }) {
   const [confirming, setConfirming] = useState(false);
   const [message, setMessage] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const submissionGuard = useRef(false);
   const changes = useQuery({
     queryKey: ["job-changes", jobId],
     queryFn: () => getJobChanges(jobId),
@@ -747,12 +750,32 @@ function ReviewChanges({ jobId }: { jobId: string }) {
     if (changes.data.promotion) setMessage(changes.data.promotion.commitMessage);
   }, [changes.data, selected.length]);
   const promotion = useMutation({
-    mutationFn: () => promoteJob(jobId, message.trim(), selected),
+    mutationFn: ({
+      commitMessage,
+      repositoryIds,
+    }: {
+      commitMessage: string;
+      repositoryIds: string[];
+    }) => promoteJob(jobId, commitMessage, repositoryIds),
     onSettled: async () => {
-      setConfirming(false);
-      await queryClient.invalidateQueries({ queryKey: ["job-changes", jobId] });
+      try {
+        await queryClient.invalidateQueries({ queryKey: ["job-changes", jobId] });
+      } finally {
+        submissionGuard.current = false;
+        setSubmitting(false);
+        setConfirming(false);
+      }
     },
   });
+  const submitPromotion = () => {
+    if (submissionGuard.current || submitting) return;
+    const commitMessage = message.trim();
+    if (!commitMessage || selected.length === 0) return;
+
+    submissionGuard.current = true;
+    setSubmitting(true);
+    promotion.mutate({ commitMessage, repositoryIds: [...selected] });
+  };
   if (changes.isPending)
     return (
       <section className="rounded-xl border border-glow/30 bg-glow-soft p-4 text-sm text-muted">
@@ -804,14 +827,15 @@ function ReviewChanges({ jobId }: { jobId: string }) {
         {!promoted && (
           <button
             type="button"
+            disabled={submitting}
             onClick={() => setOpen((value) => !value)}
-            className="text-[10px] font-mono uppercase text-muted"
+            className="text-[10px] font-mono uppercase text-muted disabled:opacity-50"
           >
             {open ? "Collapse" : "Open review"}
           </button>
         )}
       </div>
-      {promoted && (
+      {promoted && !submitting && (
         <div className="border-b border-glow/30 bg-glow-soft p-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-glow">
             <CheckCircle2 className="size-4" /> Pushed to GitHub
@@ -821,7 +845,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
           </p>
         </div>
       )}
-      {failed.length > 0 && (
+      {failed.length > 0 && !submitting && (
         <div className="border-b border-alert/30 bg-alert-soft p-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-alert">
             <TriangleAlert className="size-4" />{" "}
@@ -858,7 +882,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                         type="checkbox"
                         className="mt-1 size-4 accent-[var(--glow)]"
                         checked={checked}
-                        disabled={promotion.isPending || result?.status === "promoted"}
+                        disabled={submitting || result?.status === "promoted"}
                         onChange={(event) =>
                           setSelected((current) =>
                             event.target.checked
@@ -928,10 +952,11 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                 id={`commit-${jobId}`}
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
+                disabled={submitting}
                 maxLength={500}
                 rows={3}
                 placeholder="Describe the approved changes"
-                className="w-full resize-y rounded-md border border-edge bg-void px-3 py-2 text-sm focus:border-glow focus:outline-none"
+                className="w-full resize-y rounded-md border border-edge bg-void px-3 py-2 text-sm focus:border-glow focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
               />
               <button
                 type="button"
@@ -939,20 +964,26 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                   (!data.hasChanges && failed.length === 0) ||
                   selected.length === 0 ||
                   !message.trim() ||
-                  promotion.isPending
+                  submitting
                 }
                 onClick={() => setConfirming(true)}
                 className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-glow px-4 text-sm font-semibold text-void disabled:bg-edge disabled:text-muted"
               >
-                <GitCommitHorizontal className="size-4" />
-                {promotion.isPending
-                  ? "Promoting…"
+                {submitting ? (
+                  <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <GitCommitHorizontal className="size-4" aria-hidden="true" />
+                )}
+                {submitting
+                  ? "Pushing…"
                   : failed.length
                     ? "Retry failed repositories"
                     : "Approve & Push"}
               </button>
-              {promotion.isError && (
-                <p className="text-xs text-danger">{errorMessage(promotion.error)}</p>
+              {promotion.isError && failed.length === 0 && !submitting && (
+                <p role="alert" className="text-xs text-danger">
+                  Push failed: {errorMessage(promotion.error)}
+                </p>
               )}
             </div>
           )}
@@ -976,17 +1007,22 @@ function ReviewChanges({ jobId }: { jobId: string }) {
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
+                disabled={submitting}
                 onClick={() => setConfirming(false)}
-                className="rounded-md border border-edge px-4 py-2 text-sm"
+                className="rounded-md border border-edge px-4 py-2 text-sm disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={() => promotion.mutate()}
-                className="rounded-md bg-glow px-4 py-2 text-sm font-semibold text-void"
+                disabled={submitting}
+                onClick={submitPromotion}
+                className="flex min-h-10 items-center justify-center gap-2 rounded-md bg-glow px-4 py-2 text-sm font-semibold text-void disabled:bg-edge disabled:text-muted"
               >
-                Approve & Push
+                {submitting && (
+                  <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                )}
+                {submitting ? "Pushing…" : "Approve & Push"}
               </button>
             </div>
           </div>
