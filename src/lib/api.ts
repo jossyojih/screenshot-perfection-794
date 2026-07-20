@@ -1,4 +1,4 @@
-export type Agent = "codex" | "claude";
+export type Agent = "mock" | "codex" | "claude";
 export type JobStatus = "queued" | "running" | "needs_input" | "failed" | "cancelled" | "done";
 export interface Repository {
   id: string;
@@ -35,6 +35,8 @@ export interface Job {
   projectId: string;
   prompt: string;
   selectedRepositoryIds: string[];
+  parentJobId?: string;
+  threadId?: string;
   agent: Agent;
   status: JobStatus;
   createdAt?: string;
@@ -184,6 +186,13 @@ export async function getJob(id: string) {
     "data",
   ]);
 }
+export async function getConversation(id: string) {
+  return arrayPayload<Job>(await request<unknown>(`/jobs/${encodeURIComponent(id)}/conversation`), [
+    "jobs",
+    "conversation",
+    "data",
+  ]);
+}
 export async function createJob(
   input: Pick<Job, "projectId" | "prompt" | "selectedRepositoryIds" | "agent">,
 ) {
@@ -200,6 +209,15 @@ export async function replyToJob(id: string, message: string) {
     method: "POST",
     body: JSON.stringify({ message }),
   });
+}
+export async function continueJob(id: string, message: string, requestId: string) {
+  return objectPayload<Job>(
+    await request<unknown>(`/jobs/${encodeURIComponent(id)}/follow-ups`, {
+      method: "POST",
+      body: JSON.stringify({ message, requestId }),
+    }),
+    ["job", "data"],
+  );
 }
 export const projectRepositories = (project: Project) => {
   const raw = project.repositories ?? (project as unknown as { repos?: unknown[] }).repos ?? [];

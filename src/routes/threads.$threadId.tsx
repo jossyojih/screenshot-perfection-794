@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
@@ -6,13 +6,16 @@ import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
 import {
   cancelJob,
+  continueJob,
   errorMessage,
   formatTime,
   getJob,
+  getConversation,
   getProject,
   jobTitle,
   projectRepositories,
   replyToJob,
+  type Job,
   type JobEvent,
   authenticatedFetch,
 } from "@/lib/api";
@@ -142,6 +145,7 @@ function useJobEvents(jobId: string, active: boolean) {
 
 function ThreadPage() {
   const { threadId } = Route.useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const job = useQuery({
     queryKey: ["job", threadId],
@@ -154,12 +158,19 @@ function ThreadPage() {
     queryFn: () => getProject(job.data!.projectId),
     enabled: Boolean(job.data?.projectId),
   });
+  const conversation = useQuery({
+    queryKey: ["conversation", threadId],
+    queryFn: () => getConversation(threadId),
+  });
   const active = ["queued", "running", "needs_input"].includes(job.data?.status ?? "");
   const { events, streamError } = useJobEvents(threadId, active);
   const [reply, setReply] = useState("");
+  const [followUp, setFollowUp] = useState("");
+  const [followUpRequestId, setFollowUpRequestId] = useState(() => crypto.randomUUID());
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["job", threadId] });
     queryClient.invalidateQueries({ queryKey: ["jobs"] });
+    queryClient.invalidateQueries({ queryKey: ["conversation", threadId] });
   };
   const cancel = useMutation({ mutationFn: () => cancelJob(threadId), onSuccess: refresh });
   const sendReply = useMutation({
@@ -167,6 +178,15 @@ function ThreadPage() {
     onSuccess: () => {
       setReply("");
       refresh();
+    },
+  });
+  const sendFollowUp = useMutation({
+    mutationFn: () => continueJob(threadId, followUp.trim(), followUpRequestId),
+    onSuccess: (created) => {
+      setFollowUp("");
+      setFollowUpRequestId(crypto.randomUUID());
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      void navigate({ to: "/threads/$threadId", params: { threadId: created.id } });
     },
   });
   const repoNames = useMemo(
@@ -195,7 +215,11 @@ function ThreadPage() {
         </Page>
       </AppShell>
     );
-  const j = job.data;
+  const j = mergeJobEvents(job.data, events);
+  const earlierRuns = (conversation.data ?? []).filter((run) => run.id !== j.id);
+  const canContinue =
+    ["done", "failed", "cancelled"].includes(j.status) &&
+    (!conversation.data || conversation.data.at(-1)?.id === j.id);
   return (
     <AppShell
       title={project.data?.name ?? "Job"}
@@ -227,6 +251,37 @@ function ThreadPage() {
             </span>
           </div>
         </section>
+        {earlierRuns.length > 0 && (
+          <section className="rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
+            <h2 className="mb-3 text-[11px] font-mono uppercase tracking-widest text-muted">
+              Earlier conversation runs
+            </h2>
+            <div className="space-y-3">
+              {earlierRuns.map((run) => (
+                <Link
+                  key={run.id}
+                  to="/threads/$threadId"
+                  params={{ threadId: run.id }}
+                  className="block rounded-lg border border-edge bg-void/50 p-3 hover:border-glow/40"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusPill status={run.status} />
+                    <span className="text-[10px] font-mono text-muted">{run.agent}</span>
+                    {run.selectedRepositoryIds.map((id) => (
+                      <span key={id} className="text-[9px] font-mono text-muted">
+                        {repoNames.get(id) ?? id}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-sm">{run.prompt}</p>
+                  {run.finalResponse && (
+                    <p className="mt-2 line-clamp-2 text-xs text-muted">{run.finalResponse}</p>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
         {(j.status === "queued" || j.status === "running") && (
           <section className="rounded-lg border border-glow/30 bg-glow-soft p-4">
             <div className="flex items-center justify-between gap-3">
@@ -272,8 +327,8 @@ function ThreadPage() {
             </div>
           </section>
         )}
-        {(cancel.isError || sendReply.isError) && (
-          <ErrorState error={cancel.error ?? sendReply.error} />
+        {(cancel.isError || sendReply.isError || sendFollowUp.isError) && (
+          <ErrorState error={cancel.error ?? sendReply.error ?? sendFollowUp.error} />
         )}
         {streamError && active && (
           <div className="rounded-lg border border-alert/30 bg-alert-soft p-3 text-xs text-alert">
@@ -368,9 +423,64 @@ function ThreadPage() {
             </div>
           </section>
         )}
+        {canContinue && (
+          <section className="sticky bottom-3 rounded-xl border border-glow/40 bg-void/95 p-4 shadow-xl backdrop-blur lg:p-5">
+            <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-glow">
+              Continue conversation
+            </h2>
+            <p className="mb-3 text-xs text-muted">
+              Keeps the same {j.agent} agent and repository scope in a linked run.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <textarea
+                value={followUp}
+                onChange={(event) => setFollowUp(event.target.value)}
+                rows={3}
+                placeholder="Ask a follow-up…"
+                className="min-w-0 flex-1 resize-y rounded-md border border-edge bg-surface px-3 py-2 text-sm focus:border-glow/60 focus:outline-none"
+              />
+              <button
+                onClick={() => sendFollowUp.mutate()}
+                disabled={!followUp.trim() || sendFollowUp.isPending}
+                className="min-h-10 rounded-md bg-foreground px-5 text-[10px] font-mono uppercase text-void disabled:bg-edge sm:self-end"
+              >
+                {sendFollowUp.isPending ? "Sending…" : "Continue"}
+              </button>
+            </div>
+          </section>
+        )}
       </Page>
     </AppShell>
   );
+}
+
+export function mergeJobEvents(job: Job, events: JobEvent[]): Job {
+  let finalResponse = job.finalResponse;
+  let usage = job.usage;
+  let error = job.error;
+  let question = job.question;
+  const repositoryResults = job.repositoryResults ? [...job.repositoryResults] : [];
+  for (const event of events) {
+    const kind = event.type ?? event.event;
+    const data =
+      event.data && typeof event.data === "object" && !Array.isArray(event.data)
+        ? (event.data as Record<string, unknown>)
+        : undefined;
+    if (kind === "final_response") finalResponse = event.message;
+    if (kind === "token_usage" && data) usage = data;
+    if (kind === "repository_result" && data) {
+      const repositoryId = typeof data.repositoryId === "string" ? data.repositoryId : undefined;
+      const index = repositoryId
+        ? repositoryResults.findIndex((result) => result.repositoryId === repositoryId)
+        : -1;
+      if (index >= 0) repositoryResults[index] = data;
+      else repositoryResults.push(data);
+    }
+    if (kind === "error") error = typeof data?.error === "string" ? data.error : event.message;
+    if (kind === "question" || kind === "needs_input" || typeof data?.question === "string")
+      question = typeof data?.question === "string" ? data.question : event.message;
+  }
+  return { ...job, finalResponse, usage, error, question, repositoryResults };
 }
 function EventRow({ event }: { event: JobEvent }) {
   const kind = event.type ?? event.event ?? "event";
