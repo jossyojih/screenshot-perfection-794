@@ -7,6 +7,62 @@ type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
 
+const runnerRoutes = [
+  /^\/projects(?:\/[^/]+)?$/,
+  /^\/jobs(?:\/[^/]+(?:\/(?:events|cancel|reply))?)?$/,
+];
+
+function serverEnv(env: unknown, key: "RUNNER_API_BASE_URL" | "RUNNER_API_TOKEN") {
+  const runtime =
+    env && typeof env === "object" ? (env as Record<string, unknown>)[key] : undefined;
+  return typeof runtime === "string" ? runtime : process.env[key];
+}
+
+async function proxyRunnerRequest(request: Request, env: unknown): Promise<Response> {
+  const incoming = new URL(request.url);
+  const path = incoming.pathname.slice("/api/runner".length) || "/";
+  if (!runnerRoutes.some((route) => route.test(path))) {
+    return Response.json({ message: "Unknown runner API route" }, { status: 404 });
+  }
+
+  const baseUrl = serverEnv(env, "RUNNER_API_BASE_URL") ?? "http://127.0.0.1:4000";
+  const token = serverEnv(env, "RUNNER_API_TOKEN");
+  if (!token) {
+    return Response.json({ message: "Runner API is not configured" }, { status: 503 });
+  }
+
+  const target = new URL(path + incoming.search, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
+  const headers = new Headers();
+  headers.set("authorization", `Bearer ${token}`);
+  const contentType = request.headers.get("content-type");
+  if (contentType) headers.set("content-type", contentType);
+  const accept = request.headers.get("accept");
+  if (accept) headers.set("accept", accept);
+
+  try {
+    const upstream = await fetch(target, {
+      method: request.method,
+      headers,
+      body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
+      redirect: "manual",
+      // Required by Node when forwarding a streaming request body.
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+    const responseHeaders = new Headers();
+    for (const name of ["content-type", "cache-control", "retry-after"]) {
+      const value = upstream.headers.get(name);
+      if (value) responseHeaders.set(name, value);
+    }
+    if (path.endsWith("/events")) {
+      responseHeaders.set("cache-control", "no-cache, no-transform");
+      responseHeaders.set("x-accel-buffering", "no");
+    }
+    return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
+  } catch {
+    return Response.json({ message: "Runner API is unavailable" }, { status: 502 });
+  }
+}
+
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
 async function getServerEntry(): Promise<ServerEntry> {
@@ -47,6 +103,9 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      if (new URL(request.url).pathname.startsWith("/api/runner/")) {
+        return await proxyRunnerRequest(request, env);
+      }
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);

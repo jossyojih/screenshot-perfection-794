@@ -1,20 +1,24 @@
-import type { ThreadStatus } from "@/lib/mock-data";
+import type { JobStatus } from "@/lib/api";
 
-export const threadStatusLabel: Record<ThreadStatus, string> = {
+export const threadStatusLabel: Record<JobStatus, string> = {
+  queued: "QUEUED",
   running: "RUNNING",
   needs_input: "NEEDS INPUT",
   failed: "FAILED",
+  cancelled: "CANCELLED",
   done: "DONE",
 };
 
-const colorClass: Record<ThreadStatus, string> = {
+const colorClass: Record<JobStatus, string> = {
+  queued: "text-muted",
   running: "text-glow",
   needs_input: "text-alert",
   failed: "text-danger",
+  cancelled: "text-muted",
   done: "text-muted",
 };
 
-export function StatusPill({ status }: { status: ThreadStatus }) {
+export function StatusPill({ status }: { status: JobStatus }) {
   return (
     <span className={`text-[10px] font-mono tracking-wider ${colorClass[status]}`}>
       {threadStatusLabel[status]}
@@ -22,7 +26,7 @@ export function StatusPill({ status }: { status: ThreadStatus }) {
   );
 }
 
-export function StatusDot({ status }: { status: ThreadStatus }) {
+export function StatusDot({ status }: { status: JobStatus }) {
   if (status === "running") {
     return (
       <span className="relative inline-flex size-2">

@@ -180,11 +180,23 @@ function MobileBottomBar({ pathname }: { pathname: string }) {
   );
 }
 
-function MobileNavItem({ to, label, active }: { to: "/" | "/projects" | "/logs"; label: string; active: boolean }) {
+function MobileNavItem({
+  to,
+  label,
+  active,
+}: {
+  to: "/" | "/projects" | "/logs";
+  label: string;
+  active: boolean;
+}) {
   return (
     <Link to={to} className="flex flex-col items-center gap-1">
-      <span className={`mb-1 size-1 rounded-full ${active ? "bg-glow shadow-[var(--shadow-glow-soft)]" : "bg-transparent"}`} />
-      <span className={`text-[10px] font-mono ${active ? "text-foreground" : "text-muted"}`}>{label}</span>
+      <span
+        className={`mb-1 size-1 rounded-full ${active ? "bg-glow shadow-[var(--shadow-glow-soft)]" : "bg-transparent"}`}
+      />
+      <span className={`text-[10px] font-mono ${active ? "text-foreground" : "text-muted"}`}>
+        {label}
+      </span>
     </Link>
   );
 }

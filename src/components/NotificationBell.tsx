@@ -1,17 +1,19 @@
 import { Link } from "@tanstack/react-router";
-import { threads } from "@/lib/mock-data";
+import { useQuery } from "@tanstack/react-query";
+import { getJobs } from "@/lib/api";
 
 export function NotificationBell() {
-  const needsInput = threads.filter((t) => t.status === "needs_input").length;
-  const failed = threads.filter((t) => t.status === "failed").length;
-  const done = threads.filter((t) => t.status === "done").length;
-  const total = needsInput + failed + done;
+  const { data = [] } = useQuery({ queryKey: ["jobs"], queryFn: getJobs, refetchInterval: 5000 });
+  const needsInput = data.filter((job) => job.status === "needs_input").length;
+  const failed = data.filter((job) => job.status === "failed").length;
+  const total = needsInput + failed;
 
   const tone =
-    failed > 0 ? "border-danger/50 bg-danger-soft text-danger"
-    : needsInput > 0 ? "border-alert/50 bg-alert-soft text-alert"
-    : done > 0 ? "border-glow/40 bg-glow-soft text-glow"
-    : "border-edge bg-surface text-muted";
+    failed > 0
+      ? "border-danger/50 bg-danger-soft text-danger"
+      : needsInput > 0
+        ? "border-alert/50 bg-alert-soft text-alert"
+        : "border-edge bg-surface text-muted";
 
   return (
     <Link
