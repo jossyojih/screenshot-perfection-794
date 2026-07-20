@@ -262,11 +262,15 @@ export async function createJob(
     ["job", "data"],
   );
 }
-export async function decideJobScope(id: string, decision: "approve" | "reject") {
+export async function decideJobScope(
+  id: string,
+  decision: "approve" | "reject" | "choose",
+  requestedRepositoryIds?: string[],
+) {
   return objectPayload<Job>(
     await request<unknown>(`/jobs/${encodeURIComponent(id)}/scope-decision`, {
       method: "POST",
-      body: JSON.stringify({ decision }),
+      body: JSON.stringify({ decision, requestedRepositoryIds }),
     }),
     ["job", "data"],
   );
@@ -280,11 +284,16 @@ export async function replyToJob(id: string, message: string) {
     body: JSON.stringify({ message }),
   });
 }
-export async function continueJob(id: string, message: string, requestId: string) {
+export async function continueJob(
+  id: string,
+  message: string,
+  requestId: string,
+  scope?: { scopeMode: "auto" | "manual"; requestedRepositoryIds?: string[] },
+) {
   return objectPayload<Job>(
-    await request<unknown>(`/jobs/${encodeURIComponent(id)}/follow-ups`, {
+    await request<unknown>(`/jobs/${encodeURIComponent(id)}/continue`, {
       method: "POST",
-      body: JSON.stringify({ message, requestId }),
+      body: JSON.stringify({ message, requestId, ...scope }),
     }),
     ["job", "data"],
   );

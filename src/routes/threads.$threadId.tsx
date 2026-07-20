@@ -180,6 +180,8 @@ function ThreadPage() {
   );
   const [reply, setReply] = useState("");
   const [followUp, setFollowUp] = useState("");
+  const [followUpScope, setFollowUpScope] = useState<"keep" | "auto" | "manual">("keep");
+  const [followUpRepositories, setFollowUpRepositories] = useState<string[]>([]);
   const [followUpRequestId, setFollowUpRequestId] = useState(() => crypto.randomUUID());
   useEffect(() => {
     const status = job.data?.status;
@@ -201,11 +203,23 @@ function ThreadPage() {
     },
   });
   const scopeDecision = useMutation({
-    mutationFn: (decision: "approve" | "reject") => decideJobScope(threadId, decision),
+    mutationFn: (input: { decision: "approve" | "reject" | "choose"; ids?: string[] }) =>
+      decideJobScope(threadId, input.decision, input.ids),
     onSuccess: refresh,
   });
   const sendFollowUp = useMutation({
-    mutationFn: () => continueJob(threadId, followUp.trim(), followUpRequestId),
+    mutationFn: () =>
+      continueJob(
+        threadId,
+        followUp.trim(),
+        followUpRequestId,
+        followUpScope === "keep"
+          ? undefined
+          : {
+              scopeMode: followUpScope,
+              requestedRepositoryIds: followUpScope === "manual" ? followUpRepositories : undefined,
+            },
+      ),
     onSuccess: (created) => {
       setFollowUp("");
       setFollowUpRequestId(crypto.randomUUID());
@@ -361,20 +375,72 @@ function ThreadPage() {
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => scopeDecision.mutate("approve")}
+                    onClick={() => scopeDecision.mutate({ decision: "approve" })}
                     disabled={scopeDecision.isPending}
                     className="rounded-md bg-foreground px-4 py-2 text-[10px] font-mono uppercase text-void disabled:opacity-50"
                   >
-                    Approve Scope
+                    Approve suggested scope
                   </button>
                   <button
-                    onClick={() => scopeDecision.mutate("reject")}
+                    onClick={() => scopeDecision.mutate({ decision: "reject" })}
                     disabled={scopeDecision.isPending}
                     className="rounded-md border border-edge px-4 py-2 text-[10px] font-mono uppercase disabled:opacity-50"
                   >
                     Keep Current Scope
                   </button>
+                  <button
+                    onClick={() => {
+                      setFollowUpScope("manual");
+                      setFollowUpRepositories(j.resolvedRepositoryIds ?? []);
+                      document
+                        .getElementById("continue-conversation")
+                        ?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    className="rounded-md border border-edge px-4 py-2 text-[10px] font-mono uppercase"
+                  >
+                    Choose repositories
+                  </button>
                 </div>
+                {followUpScope === "manual" && (
+                  <div className="mt-3 rounded-lg border border-edge bg-void/40 p-3">
+                    <div className="mb-2 text-[10px] font-mono uppercase text-muted">
+                      Manual repository scope
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {projectRepositories(
+                        project.data ?? { id: "", name: "", repositories: [] },
+                      ).map((repository) => (
+                        <label
+                          key={repository.id}
+                          className="flex items-center gap-2 rounded border border-edge px-3 py-2 text-xs"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={followUpRepositories.includes(repository.id)}
+                            onChange={() =>
+                              setFollowUpRepositories((ids) =>
+                                ids.includes(repository.id)
+                                  ? ids.filter((id) => id !== repository.id)
+                                  : [...ids, repository.id],
+                              )
+                            }
+                          />
+                          {repository.name}
+                        </label>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!followUpRepositories.length || scopeDecision.isPending}
+                      onClick={() =>
+                        scopeDecision.mutate({ decision: "choose", ids: followUpRepositories })
+                      }
+                      className="mt-3 rounded-md bg-foreground px-4 py-2 text-[10px] font-mono uppercase text-void disabled:bg-edge"
+                    >
+                      Run with chosen scope
+                    </button>
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -514,13 +580,62 @@ function ThreadPage() {
           </section>
         )}
         {canContinue && (
-          <section className="sticky bottom-3 rounded-xl border border-glow/40 bg-void/95 p-4 shadow-xl backdrop-blur lg:p-5">
+          <section
+            id="continue-conversation"
+            className="sticky bottom-3 rounded-xl border border-glow/40 bg-void/95 p-4 shadow-xl backdrop-blur lg:p-5"
+          >
             <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-glow">
               Continue conversation
             </h2>
             <p className="mb-3 text-xs text-muted">
-              Keeps the same {j.agent} agent and repository scope in a linked run.
+              Starts a linked run with the same {j.agent} agent. Choose whether to retain or correct
+              repository scope.
             </p>
+            <div className="mb-3 grid gap-2 sm:grid-cols-3">
+              {(["keep", "auto", "manual"] as const).map((mode) => (
+                <button
+                  type="button"
+                  key={mode}
+                  onClick={() => {
+                    setFollowUpScope(mode);
+                    if (mode === "manual" && followUpRepositories.length === 0)
+                      setFollowUpRepositories(j.resolvedRepositoryIds ?? []);
+                  }}
+                  className={`rounded-md border px-3 py-2 text-left text-xs ${followUpScope === mode ? "border-glow bg-glow-soft" : "border-edge bg-surface"}`}
+                >
+                  {mode === "keep"
+                    ? "Keep current"
+                    : mode === "auto"
+                      ? "Auto-select again"
+                      : "Manual scope"}
+                </button>
+              ))}
+            </div>
+            {followUpScope === "manual" && (
+              <div className="mb-3 grid gap-2 sm:grid-cols-2">
+                {projectRepositories(project.data ?? { id: "", name: "", repositories: [] }).map(
+                  (repository) => (
+                    <label
+                      key={repository.id}
+                      className="flex items-center gap-2 rounded-md border border-edge bg-surface px-3 py-2 text-xs"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={followUpRepositories.includes(repository.id)}
+                        onChange={() =>
+                          setFollowUpRepositories((ids) =>
+                            ids.includes(repository.id)
+                              ? ids.filter((id) => id !== repository.id)
+                              : [...ids, repository.id],
+                          )
+                        }
+                      />
+                      {repository.name}
+                    </label>
+                  ),
+                )}
+              </div>
+            )}
             <div className="flex flex-col gap-2 sm:flex-row">
               <textarea
                 value={followUp}
@@ -531,7 +646,11 @@ function ThreadPage() {
               />
               <button
                 onClick={() => sendFollowUp.mutate()}
-                disabled={!followUp.trim() || sendFollowUp.isPending}
+                disabled={
+                  !followUp.trim() ||
+                  sendFollowUp.isPending ||
+                  (followUpScope === "manual" && followUpRepositories.length === 0)
+                }
                 className="min-h-10 rounded-md bg-foreground px-5 text-[10px] font-mono uppercase text-void disabled:bg-edge sm:self-end"
               >
                 {sendFollowUp.isPending ? "Sending…" : "Continue"}
@@ -603,6 +722,12 @@ function ReviewChanges({ jobId }: { jobId: string }) {
       <section className="rounded-xl border border-edge bg-surface/50 p-4">
         <div className="text-sm font-medium">No changes to promote</div>
         <p className="mt-1 text-xs text-muted">This job did not modify any repository files.</p>
+        <a
+          href="#continue-conversation"
+          className="mt-3 inline-block text-[10px] font-mono uppercase text-glow"
+        >
+          Retry with different scope
+        </a>
       </section>
     );
   return (
