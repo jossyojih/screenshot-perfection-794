@@ -792,8 +792,14 @@ function ReviewChanges({ jobId }: { jobId: string }) {
   };
   if (changes.isPending)
     return (
-      <section className="rounded-xl border border-glow/30 bg-glow-soft p-4 text-sm text-muted">
-        Checking for reviewable changes…
+      <section
+        className="rounded-xl border border-glow/30 bg-glow-soft p-4 text-sm text-muted"
+        aria-live="polite"
+      >
+        <div className="flex min-h-11 items-center gap-2">
+          <LoaderCircle className="size-4 shrink-0 animate-spin text-glow" aria-hidden="true" />
+          Checking for reviewable changes…
+        </div>
       </section>
     );
   if (changes.isError) return <ErrorState error={changes.error} retry={() => changes.refetch()} />;
@@ -805,7 +811,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-between rounded-xl border-2 border-glow/60 bg-glow-soft p-4 text-left shadow-glow transition hover:border-glow lg:p-5"
+        className="flex min-h-16 w-full items-center justify-between gap-3 rounded-xl border-2 border-glow/60 bg-glow-soft p-4 text-left shadow-glow transition hover:border-glow lg:p-5"
       >
         <span>
           <span className="block text-sm font-semibold">Review changes</span>
@@ -830,9 +836,9 @@ function ReviewChanges({ jobId }: { jobId: string }) {
       </section>
     );
   return (
-    <section className="overflow-hidden rounded-xl border border-edge bg-surface/60">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-edge p-4 lg:p-5">
-        <div>
+    <section className="min-w-0 overflow-hidden rounded-xl border border-edge bg-surface/60">
+      <div className="flex flex-col items-stretch gap-3 border-b border-edge p-4 sm:flex-row sm:items-center sm:justify-between lg:p-5">
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold">Review changes</h2>
           <p className="mt-1 text-xs text-muted">
             Only selected repositories will be committed and pushed.
@@ -843,7 +849,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
             type="button"
             disabled={submitting}
             onClick={() => setOpen((value) => !value)}
-            className="text-[10px] font-mono uppercase text-muted disabled:opacity-50"
+            className="min-h-11 self-start rounded-md px-2 text-[10px] font-mono uppercase text-muted disabled:opacity-50 sm:min-h-0 sm:self-auto sm:p-0"
           >
             {open ? "Collapse" : "Open review"}
           </button>
@@ -870,14 +876,14 @@ function ReviewChanges({ jobId }: { jobId: string }) {
             {failed.some((r) => r.conflict) ? "Push conflict" : "Push failed"}
           </div>
           {failed.map((r) => (
-            <p key={r.repositoryId} className="mt-1 text-xs text-muted">
+            <p key={r.repositoryId} className="mt-1 break-words text-xs text-muted">
               {r.error}
             </p>
           ))}
         </div>
       )}
       {(open || promoted || failed.length > 0) && (
-        <div className="space-y-4 p-4 lg:p-5">
+        <div className="min-w-0 space-y-4 p-3 min-[380px]:p-4 lg:p-5">
           {data.repositories
             .filter(
               (repo) =>
@@ -892,13 +898,13 @@ function ReviewChanges({ jobId }: { jobId: string }) {
               return (
                 <article
                   key={repo.repositoryId}
-                  className="rounded-lg border border-edge bg-void/50"
+                  className="min-w-0 overflow-hidden rounded-lg border border-edge bg-void/50"
                 >
-                  <div className="flex items-start gap-3 p-3 lg:p-4">
+                  <div className="flex min-w-0 items-start gap-3 p-3 lg:p-4">
                     {!promoted && (
                       <input
                         type="checkbox"
-                        className="mt-1 size-4 accent-[var(--glow)]"
+                        className="size-5 shrink-0 accent-[var(--glow)]"
                         checked={checked}
                         disabled={submitting || result?.status === "promoted"}
                         onChange={(event) =>
@@ -912,13 +918,13 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                       />
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h3 className="font-medium">{repo.repositoryName}</h3>
+                      <div className="flex flex-col items-start gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
+                        <h3 className="break-words font-medium">{repo.repositoryName}</h3>
                         <span className="font-mono text-[10px] text-muted">
                           +{repo.additions} / −{repo.deletions}
                         </span>
                       </div>
-                      <div className="mt-1 text-[10px] font-mono text-muted">
+                      <div className="mt-1 break-all text-[10px] font-mono text-muted">
                         target: {repo.targetBranch} · base: {repo.baseCommitSha.slice(0, 12)}
                       </div>
                       {result && (
@@ -935,16 +941,19 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                       )}
                     </div>
                   </div>
-                  <div className="border-t border-edge">
+                  <div className="min-w-0 border-t border-edge">
+                    <div className="bg-surface/50 px-3 py-2 text-[9px] font-mono uppercase tracking-widest text-muted lg:px-4">
+                      Changed files
+                    </div>
                     {repo.changedFiles.map((file) => (
-                      <details key={file.path} className="border-b border-edge last:border-0">
-                        <summary className="cursor-pointer break-all px-3 py-2 font-mono text-xs lg:px-4">
+                      <details key={file.path} className="min-w-0 border-t border-edge">
+                        <summary className="min-h-11 cursor-pointer break-all px-3 py-3 font-mono text-xs lg:px-4">
                           {file.path}{" "}
                           <span className="text-muted">
                             +{file.additions} −{file.deletions}
                           </span>
                         </summary>
-                        <pre className="max-h-[32rem] overflow-auto border-t border-edge bg-black/30 p-3 text-[11px] leading-relaxed">
+                        <pre className="max-h-[60vh] w-full max-w-full overscroll-contain overflow-auto border-t border-edge bg-black/30 p-3 text-[11px] leading-relaxed [contain:inline-size]">
                           <code>{file.diff || "Binary file or metadata-only change"}</code>
                         </pre>
                         {file.truncated && (
@@ -959,7 +968,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
               );
             })}
           {!promoted && (
-            <div className="space-y-3 rounded-lg border border-edge p-3 lg:p-4">
+            <div className="sticky bottom-3 z-20 space-y-3 rounded-lg border border-glow/40 bg-void/95 p-3 shadow-xl backdrop-blur lg:static lg:border-edge lg:bg-transparent lg:p-4 lg:shadow-none">
               <label
                 htmlFor={`commit-${jobId}`}
                 className="block text-[10px] font-mono uppercase tracking-widest text-muted"
@@ -974,7 +983,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                 maxLength={500}
                 rows={3}
                 placeholder="Describe the approved changes"
-                className="w-full resize-y rounded-md border border-edge bg-void px-3 py-2 text-sm focus:border-glow focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                className="min-h-20 w-full resize-y rounded-md border border-edge bg-void px-3 py-2 text-base focus:border-glow focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
               />
               <button
                 type="button"
@@ -1000,7 +1009,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
               </button>
               {promotion.isError && failed.length === 0 && !submitting && (
                 <p role="alert" className="text-xs text-danger">
-                  Push failed: {errorMessage(promotion.error)}
+                  <span className="break-words">Push failed: {errorMessage(promotion.error)}</span>
                 </p>
               )}
             </div>
@@ -1012,9 +1021,9 @@ function ReviewChanges({ jobId }: { jobId: string }) {
           role="alertdialog"
           aria-modal="true"
           aria-labelledby={`confirm-${jobId}`}
-          className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4"
+          className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/80 p-3 min-[380px]:p-4"
         >
-          <div className="w-full max-w-md rounded-xl border border-edge bg-void p-5 shadow-2xl">
+          <div className="my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-xl border border-edge bg-void p-4 shadow-2xl min-[380px]:p-5">
             <h3 id={`confirm-${jobId}`} className="text-lg font-semibold">
               Approve and push?
             </h3>
@@ -1028,7 +1037,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                 type="button"
                 disabled={submitting}
                 onClick={() => setConfirming(false)}
-                className="rounded-md border border-edge px-4 py-2 text-sm disabled:opacity-50"
+                className="min-h-11 rounded-md border border-edge px-4 py-2 text-sm disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -1036,7 +1045,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                 type="button"
                 disabled={submitting}
                 onClick={submitPromotion}
-                className="flex min-h-10 items-center justify-center gap-2 rounded-md bg-glow px-4 py-2 text-sm font-semibold text-void disabled:bg-edge disabled:text-muted"
+                className="flex min-h-11 items-center justify-center gap-2 rounded-md bg-glow px-4 py-2 text-sm font-semibold text-void disabled:bg-edge disabled:text-muted"
               >
                 {submitting && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
                 {submitting ? "Pushing…" : "Approve & Push"}
@@ -1059,7 +1068,7 @@ const deploymentLabels: Record<Deployment["status"], string> = {
 
 function DeploymentProgress({ deployments }: { deployments: Deployment[] }) {
   return (
-    <div className="border-b border-edge bg-void/40 p-4" aria-live="polite">
+    <div className="space-y-3 border-b border-edge bg-void/40 p-4" aria-live="polite">
       {deployments.map((deployment) => {
         const active = deployment.status === "queued" || deployment.status === "deploying";
         const successful = deployment.status === "succeeded";
@@ -1072,13 +1081,13 @@ function DeploymentProgress({ deployments }: { deployments: Deployment[] }) {
             ) : (
               <TriangleAlert className="mt-0.5 size-4 text-alert" aria-hidden="true" />
             )}
-            <div>
+            <div className="min-w-0">
               <div
                 className={`text-sm font-semibold ${successful || active ? "text-glow" : "text-alert"}`}
               >
                 {deploymentLabels[deployment.status]}
               </div>
-              <div className="mt-1 font-mono text-[10px] uppercase text-muted">
+              <div className="mt-1 break-all font-mono text-[10px] uppercase text-muted">
                 {deployment.stage.replaceAll("_", " ")} · {deployment.commitSha.slice(0, 12)}
               </div>
               {deployment.errorCode && (
