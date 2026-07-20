@@ -185,7 +185,9 @@ function ThreadPage() {
   const [followUp, setFollowUp] = useState("");
   const [followUpScope, setFollowUpScope] = useState<"keep" | "auto" | "manual">("keep");
   const [followUpRepositories, setFollowUpRepositories] = useState<string[]>([]);
+  const [followUpSettingsOpen, setFollowUpSettingsOpen] = useState(false);
   const [followUpRequestId, setFollowUpRequestId] = useState(() => crypto.randomUUID());
+  const followUpSubmitting = useRef(false);
   useEffect(() => {
     const status = job.data?.status;
     if (status === "queued" || status === "running") setActivityExpanded(true);
@@ -211,16 +213,21 @@ function ThreadPage() {
     onSuccess: refresh,
   });
   const sendFollowUp = useMutation({
-    mutationFn: () =>
+    mutationFn: (input: {
+      prompt: string;
+      requestId: string;
+      scope: "keep" | "auto" | "manual";
+      repositories: string[];
+    }) =>
       continueJob(
         threadId,
-        followUp.trim(),
-        followUpRequestId,
-        followUpScope === "keep"
+        input.prompt,
+        input.requestId,
+        input.scope === "keep"
           ? undefined
           : {
-              scopeMode: followUpScope,
-              requestedRepositoryIds: followUpScope === "manual" ? followUpRepositories : undefined,
+              scopeMode: input.scope,
+              requestedRepositoryIds: input.scope === "manual" ? input.repositories : undefined,
             },
       ),
     onSuccess: (created) => {
@@ -228,6 +235,9 @@ function ThreadPage() {
       setFollowUpRequestId(crypto.randomUUID());
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       void navigate({ to: "/threads/$threadId", params: { threadId: created.id } });
+    },
+    onSettled: () => {
+      followUpSubmitting.current = false;
     },
   });
   const repoNames = useMemo(
@@ -262,6 +272,31 @@ function ThreadPage() {
     ["done", "failed", "cancelled"].includes(j.status) &&
     (!conversation.data || conversation.data.at(-1)?.id === j.id);
   const completed = ["done", "failed", "cancelled"].includes(j.status);
+  const selectedScopeSummary =
+    followUpScope === "keep"
+      ? `Current scope · ${(j.resolvedRepositoryIds ?? j.selectedRepositoryIds).length} repositor${(j.resolvedRepositoryIds ?? j.selectedRepositoryIds).length === 1 ? "y" : "ies"}`
+      : followUpScope === "auto"
+        ? "Auto-select repositories"
+        : followUpRepositories.length
+          ? followUpRepositories.map((id) => repoNames.get(id) ?? id).join(", ")
+          : "No repositories selected";
+  const submitFollowUp = () => {
+    const prompt = followUp.trim();
+    if (
+      !prompt ||
+      followUpSubmitting.current ||
+      sendFollowUp.isPending ||
+      (followUpScope === "manual" && followUpRepositories.length === 0)
+    )
+      return;
+    followUpSubmitting.current = true;
+    sendFollowUp.mutate({
+      prompt,
+      requestId: followUpRequestId,
+      scope: followUpScope,
+      repositories: [...followUpRepositories],
+    });
+  };
   const activityId = `job-activity-${j.id}`;
   const goBack = () => {
     if (window.history.length > 1) {
@@ -606,78 +641,130 @@ function ThreadPage() {
         {canContinue && (
           <section
             id="continue-conversation"
-            className="sticky bottom-3 rounded-xl border border-glow/40 bg-void/95 p-4 shadow-xl backdrop-blur lg:p-5"
+            className="sticky bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] min-w-0 overflow-hidden rounded-xl border border-glow/40 bg-void/95 p-4 shadow-xl backdrop-blur lg:bottom-3 lg:p-5"
           >
             <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-glow">
               Continue conversation
             </h2>
-            <p className="mb-3 text-xs text-muted">
+            <p className="mb-3 hidden text-xs text-muted sm:block">
               Starts a linked run with the same {j.agent} agent. Choose whether to retain or correct
               repository scope.
             </p>
-            <div className="mb-3 grid gap-2 sm:grid-cols-3">
-              {(["keep", "auto", "manual"] as const).map((mode) => (
-                <button
-                  type="button"
-                  key={mode}
-                  onClick={() => {
-                    setFollowUpScope(mode);
-                    if (mode === "manual" && followUpRepositories.length === 0)
-                      setFollowUpRepositories(j.resolvedRepositoryIds ?? []);
-                  }}
-                  className={`rounded-md border px-3 py-2 text-left text-xs ${followUpScope === mode ? "border-glow bg-glow-soft" : "border-edge bg-surface"}`}
+            <button
+              type="button"
+              aria-expanded={followUpSettingsOpen}
+              aria-controls="follow-up-settings"
+              onClick={() => setFollowUpSettingsOpen((open) => !open)}
+              className="mb-3 flex w-full min-w-0 items-center justify-between gap-3 rounded-md border border-edge bg-surface px-3 py-2 text-left sm:hidden"
+            >
+              <span className="min-w-0">
+                <span className="block text-[10px] font-mono uppercase tracking-wider text-muted">
+                  Settings
+                </span>
+                <span
+                  className="block truncate text-xs"
+                  title={`${j.agent} · ${selectedScopeSummary}`}
                 >
-                  {mode === "keep"
-                    ? "Keep current"
-                    : mode === "auto"
-                      ? "Auto-select again"
-                      : "Manual scope"}
-                </button>
-              ))}
-            </div>
-            {followUpScope === "manual" && (
-              <div className="mb-3 grid gap-2 sm:grid-cols-2">
-                {projectRepositories(project.data ?? { id: "", name: "", repositories: [] }).map(
-                  (repository) => (
-                    <label
-                      key={repository.id}
-                      className="flex items-center gap-2 rounded-md border border-edge bg-surface px-3 py-2 text-xs"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={followUpRepositories.includes(repository.id)}
-                        onChange={() =>
-                          setFollowUpRepositories((ids) =>
-                            ids.includes(repository.id)
-                              ? ids.filter((id) => id !== repository.id)
-                              : [...ids, repository.id],
-                          )
-                        }
-                      />
-                      {repository.name}
-                    </label>
-                  ),
-                )}
+                  {j.agent} · {selectedScopeSummary}
+                </span>
+              </span>
+              <ChevronDown
+                aria-hidden="true"
+                className={`size-4 shrink-0 transition-transform ${followUpSettingsOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            <div
+              id="follow-up-settings"
+              className={`${followUpSettingsOpen ? "block" : "hidden"} mb-3 min-w-0 rounded-lg border border-edge bg-surface/50 p-3 sm:block sm:border-0 sm:bg-transparent sm:p-0`}
+            >
+              <div className="mb-3 min-w-0 sm:hidden">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-muted">
+                  Agent
+                </div>
+                <div className="mt-1 truncate text-xs" title={j.agent}>
+                  {j.agent}
+                </div>
+                <div className="mt-3 text-[10px] font-mono uppercase tracking-wider text-muted">
+                  Repository scope
+                </div>
+                <div className="mt-1 break-words text-xs text-foreground">
+                  {selectedScopeSummary}
+                </div>
               </div>
-            )}
+              <div className="grid gap-2 sm:grid-cols-3">
+                {(["keep", "auto", "manual"] as const).map((mode) => (
+                  <button
+                    type="button"
+                    key={mode}
+                    onClick={() => {
+                      setFollowUpScope(mode);
+                      if (mode === "manual" && followUpRepositories.length === 0)
+                        setFollowUpRepositories(j.resolvedRepositoryIds ?? []);
+                    }}
+                    className={`rounded-md border px-3 py-2 text-left text-xs ${followUpScope === mode ? "border-glow bg-glow-soft" : "border-edge bg-surface"}`}
+                  >
+                    {mode === "keep"
+                      ? "Keep current"
+                      : mode === "auto"
+                        ? "Auto-select again"
+                        : "Manual scope"}
+                  </button>
+                ))}
+              </div>
+              {followUpScope === "manual" && (
+                <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2">
+                  {projectRepositories(project.data ?? { id: "", name: "", repositories: [] }).map(
+                    (repository) => (
+                      <label
+                        key={repository.id}
+                        className="flex items-center gap-2 rounded-md border border-edge bg-surface px-3 py-2 text-xs"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={followUpRepositories.includes(repository.id)}
+                          onChange={() =>
+                            setFollowUpRepositories((ids) =>
+                              ids.includes(repository.id)
+                                ? ids.filter((id) => id !== repository.id)
+                                : [...ids, repository.id],
+                            )
+                          }
+                        />
+                        <span className="min-w-0 break-words">{repository.name}</span>
+                      </label>
+                    ),
+                  )}
+                </div>
+              )}
+            </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <textarea
                 value={followUp}
                 onChange={(event) => setFollowUp(event.target.value)}
                 rows={3}
                 placeholder="Ask a follow-up…"
-                className="min-w-0 flex-1 resize-y rounded-md border border-edge bg-surface px-3 py-2 text-sm focus:border-glow/60 focus:outline-none"
+                className="w-full min-w-0 max-w-full flex-1 resize-y rounded-md border border-edge bg-surface px-3 py-2 text-base focus:border-glow/60 focus:outline-none sm:text-sm"
               />
               <button
-                onClick={() => sendFollowUp.mutate()}
+                onClick={submitFollowUp}
                 disabled={
                   !followUp.trim() ||
                   sendFollowUp.isPending ||
                   (followUpScope === "manual" && followUpRepositories.length === 0)
                 }
-                className="min-h-10 rounded-md bg-foreground px-5 text-[10px] font-mono uppercase text-void disabled:bg-edge sm:self-end"
+                aria-busy={sendFollowUp.isPending}
+                className="min-h-11 w-full rounded-md bg-foreground px-5 text-[10px] font-mono uppercase text-void disabled:cursor-not-allowed disabled:bg-edge sm:min-h-10 sm:w-auto sm:self-end"
               >
-                {sendFollowUp.isPending ? "Sending…" : "Continue"}
+                {sendFollowUp.isPending ? (
+                  <span className="inline-flex items-center gap-2">
+                    <LoaderCircle className="size-3 animate-spin" /> Sending…
+                  </span>
+                ) : (
+                  <>
+                    <span className="sm:hidden">Instruct agent</span>
+                    <span className="hidden sm:inline">Continue</span>
+                  </>
+                )}
               </button>
             </div>
           </section>
