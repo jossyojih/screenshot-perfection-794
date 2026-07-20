@@ -260,6 +260,20 @@ function ThreadPage() {
     (!conversation.data || conversation.data.at(-1)?.id === j.id);
   const completed = ["done", "failed", "cancelled"].includes(j.status);
   const activityId = `job-activity-${j.id}`;
+  const goBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    if (j.projectId) {
+      void navigate({
+        to: "/projects/$projectId",
+        params: { projectId: j.projectId },
+      });
+      return;
+    }
+    void navigate({ to: "/" });
+  };
   const finalResponse = (j.finalResponse || j.status === "done") && (
     <section className="rounded-lg border border-edge bg-surface p-4">
       <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-glow">
@@ -274,9 +288,13 @@ function ThreadPage() {
     <AppShell
       title={project.data?.name ?? "Job"}
       headerRight={
-        <Link to="/" className="text-[10px] font-mono uppercase tracking-widest text-muted">
-          ← Feed
-        </Link>
+        <button
+          type="button"
+          onClick={goBack}
+          className="text-[10px] font-mono uppercase tracking-widest text-muted"
+        >
+          ← Back
+        </button>
       }
     >
       <Page>
