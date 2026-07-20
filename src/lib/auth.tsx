@@ -3,7 +3,9 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -39,13 +41,18 @@ function restoreSession(): Session | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(() => restoreSession());
+  const sessionRef = useRef(session);
   const logout = useCallback(() => {
+    sessionRef.current = null;
     localStorage.removeItem(STORAGE_KEY);
     setSession(null);
   }, []);
 
+  useLayoutEffect(() => {
+    setAuthAccessors(() => sessionRef.current?.accessToken ?? null, logout);
+  }, [logout]);
+
   useEffect(() => {
-    setAuthAccessors(() => session?.accessToken ?? null, logout);
     if (!session) return;
     const remaining = session.expiresAt - Date.now();
     if (remaining <= 0) return logout();
@@ -55,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (credentials: LoginCredentials, remember: boolean) => {
     const next = await loginRequest(credentials);
+    sessionRef.current = next;
     setSession(next);
     if (remember) localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     else localStorage.removeItem(STORAGE_KEY);
