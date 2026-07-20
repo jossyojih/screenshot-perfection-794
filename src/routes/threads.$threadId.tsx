@@ -14,6 +14,7 @@ import {
   projectRepositories,
   replyToJob,
   type JobEvent,
+  authenticatedFetch,
 } from "@/lib/api";
 export const Route = createFileRoute("/threads/$threadId")({
   head: () => ({ meta: [{ title: "Job — Command Center" }] }),
@@ -27,14 +28,18 @@ function useJobEvents(jobId: string, active: boolean) {
   useEffect(() => {
     setEvents([]);
     setStreamError(undefined);
-    const source = new EventSource(`/api/runner/jobs/${encodeURIComponent(jobId)}/events`);
-    const add = (message: MessageEvent) => {
+    const controller = new AbortController();
+    let lastEventId = "";
+    let retryDelay = 1500;
+    const add = (data: string, eventType = "message", id = "") => {
       try {
-        const parsed = JSON.parse(message.data) as JobEvent;
+        const parsed = JSON.parse(data) as JobEvent;
+        if (id && !parsed.id) parsed.id = id;
+        if (eventType !== "message" && !parsed.type && !parsed.event) parsed.type = eventType;
         setEvents((current) => {
           const key =
             parsed.id ??
-            `${parsed.timestamp ?? parsed.createdAt}:${parsed.type ?? parsed.event}:${message.data}`;
+            `${parsed.timestamp ?? parsed.createdAt}:${parsed.type ?? parsed.event}:${data}`;
           return current.some(
             (item) =>
               (item.id ??
@@ -45,18 +50,92 @@ function useJobEvents(jobId: string, active: boolean) {
             : [...current, parsed];
         });
       } catch {
-        setEvents((current) => [...current, { type: message.type, message: message.data }]);
+        setEvents((current) => [
+          ...current,
+          { id: id || undefined, type: eventType, message: data },
+        ]);
       }
       queryClient.invalidateQueries({ queryKey: ["job", jobId] });
     };
-    source.onmessage = add;
-    for (const name of ["status", "log", "message", "result", "usage", "needs_input", "completed"])
-      source.addEventListener(name, add as EventListener);
-    source.onerror = (event) => {
-      if (event instanceof MessageEvent && event.data) add(event);
-      else if (active) setStreamError("Live updates disconnected. Reconnecting…");
+    const parseBlock = (block: string) => {
+      let eventType = "message";
+      let id: string | undefined;
+      const data: string[] = [];
+      for (const line of block.split(/\r\n|\r|\n/)) {
+        if (!line || line.startsWith(":")) continue;
+        const separator = line.indexOf(":");
+        const field = separator < 0 ? line : line.slice(0, separator);
+        let value = separator < 0 ? "" : line.slice(separator + 1);
+        if (value.startsWith(" ")) value = value.slice(1);
+        if (field === "event") eventType = value;
+        else if (field === "id" && !value.includes("\0")) id = value;
+        else if (field === "retry" && /^\d+$/.test(value))
+          retryDelay = Math.max(500, Number(value));
+        else if (field === "data") data.push(value);
+      }
+      if (id !== undefined) lastEventId = id;
+      if (data.length) add(data.join("\n"), eventType || "message", id ?? "");
     };
-    return () => source.close();
+    const connect = async () => {
+      while (!controller.signal.aborted) {
+        try {
+          const response = await authenticatedFetch(`/jobs/${encodeURIComponent(jobId)}/events`, {
+            signal: controller.signal,
+            headers: {
+              Accept: "text/event-stream",
+              ...(lastEventId ? { "Last-Event-ID": lastEventId } : {}),
+            },
+          });
+          if (!response.ok) throw new Error(`Live updates failed (${response.status})`);
+          if (!response.body) throw new Error("Live updates are unavailable");
+          setStreamError(undefined);
+          retryDelay = 1500;
+          const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+          let buffer = "";
+          try {
+            while (!controller.signal.aborted) {
+              const { value, done } = await reader.read();
+              if (done) {
+                if (buffer) parseBlock(buffer);
+                break;
+              }
+              buffer += value;
+              let match: RegExpExecArray | null;
+              while ((match = /\r\n\r\n|\r\r|\n\n/.exec(buffer))) {
+                parseBlock(buffer.slice(0, match.index));
+                buffer = buffer.slice(match.index + match[0].length);
+              }
+            }
+          } finally {
+            reader.releaseLock();
+          }
+        } catch (error) {
+          if (controller.signal.aborted) break;
+          if (error instanceof Error && error.message.includes("401")) {
+            setStreamError("Session expired.");
+            break;
+          }
+          setStreamError(
+            active ? "Live updates disconnected. Reconnecting…" : "Live event replay unavailable.",
+          );
+        }
+        if (!active || controller.signal.aborted) break;
+        await new Promise<void>((resolve) => {
+          const timeout = window.setTimeout(() => {
+            controller.signal.removeEventListener("abort", onAbort);
+            resolve();
+          }, retryDelay);
+          const onAbort = () => {
+            window.clearTimeout(timeout);
+            resolve();
+          };
+          controller.signal.addEventListener("abort", onAbort, { once: true });
+        });
+        retryDelay = Math.min(retryDelay * 2, 15000);
+      }
+    };
+    void connect();
+    return () => controller.abort();
   }, [jobId, active, queryClient]);
   return { events, streamError };
 }

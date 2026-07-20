@@ -6,10 +6,12 @@ import {
   LayoutDashboard,
   Plus,
   TerminalSquare,
+  LogOut,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "./NotificationBell";
+import { useAuth } from "@/lib/auth";
 
 export function AppShell({
   children,
@@ -23,6 +25,7 @@ export function AppShell({
   bottomBar?: ReactNode | false;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { logout } = useAuth();
 
   return (
     <div className="min-h-screen w-full bg-void text-foreground">
@@ -49,6 +52,14 @@ export function AppShell({
               {headerRight}
               <NotificationBell />
               <ThemeToggle />
+              <button
+                onClick={logout}
+                aria-label="Sign out"
+                title="Sign out"
+                className="flex size-9 items-center justify-center rounded-md border border-edge text-muted hover:text-danger"
+              >
+                <LogOut className="size-4" />
+              </button>
             </div>
           </div>
         </header>
