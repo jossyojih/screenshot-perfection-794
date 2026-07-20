@@ -1,9 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { GitBranch, Plus } from "lucide-react";
+import { useState } from "react";
+import { GitBranch, Plus, Search } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   formatTime,
   getJobs,
@@ -18,6 +21,9 @@ export const Route = createFileRoute("/projects/$projectId")({
 });
 function ProjectDetail() {
   const { projectId } = Route.useParams();
+  const [threadSearch, setThreadSearch] = useState("");
+  const [threadFilter, setThreadFilter] = useState<ThreadFilter>("all");
+  const [threadPage, setThreadPage] = useState(1);
   const project = useQuery({
     queryKey: ["project", projectId],
     queryFn: () => getProject(projectId),
@@ -43,6 +49,20 @@ function ProjectDetail() {
   const repos = projectRepositories(p);
   const projectJobs = (jobs.data ?? []).filter((j) => j.projectId === p.id);
   const projectThreads = groupJobsByThread(projectJobs);
+  const query = threadSearch.trim().toLocaleLowerCase();
+  const filteredThreads = projectThreads.filter((thread) => {
+    const matchesSearch =
+      !query ||
+      jobTitle(thread.initialRun).toLocaleLowerCase().includes(query) ||
+      thread.agents.some((agent) => agent.toLocaleLowerCase().includes(query));
+    return matchesSearch && matchesThreadFilter(thread.latestRun.status, threadFilter);
+  });
+  const pageCount = Math.max(1, Math.ceil(filteredThreads.length / THREADS_PER_PAGE));
+  const currentPage = Math.min(threadPage, pageCount);
+  const visibleThreads = filteredThreads.slice(
+    (currentPage - 1) * THREADS_PER_PAGE,
+    currentPage * THREADS_PER_PAGE,
+  );
   return (
     <AppShell
       title={p.name}
@@ -106,30 +126,106 @@ function ProjectDetail() {
             ) : projectJobs.length === 0 ? (
               <DataState title="No jobs yet. Send a task to start one." />
             ) : (
-              <div className="overflow-hidden rounded-xl border border-edge bg-surface">
-                {projectThreads.map(({ key, initialRun, latestRun, runCount }) => (
-                  <Link
-                    key={key}
-                    to="/threads/$threadId"
-                    params={{ threadId: latestRun.id }}
-                    className="group block border-b border-edge p-4 last:border-0 hover:bg-glow-soft/50 lg:p-5"
+              <div className="space-y-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="relative w-full sm:max-w-xs">
+                    <Search
+                      aria-hidden="true"
+                      className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+                    />
+                    <Input
+                      type="search"
+                      aria-label="Search threads by title or agent"
+                      placeholder="Search title or agent"
+                      value={threadSearch}
+                      onChange={(event) => {
+                        setThreadSearch(event.target.value);
+                        setThreadPage(1);
+                      }}
+                      className="pl-9"
+                    />
+                  </div>
+                  <div
+                    className="grid grid-cols-2 gap-2 sm:flex"
+                    role="group"
+                    aria-label="Filter threads by status"
                   >
-                    <div className="flex justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium">{jobTitle(initialRun)}</div>
-                        <div className="mt-3 text-[9px] font-mono uppercase tracking-widest text-muted">
-                          {latestRun.agent} ·{" "}
-                          {formatTime(latestRun.updatedAt ?? latestRun.createdAt)} · {runCount}{" "}
-                          {runCount === 1 ? "run" : "runs"}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <StatusDot status={latestRun.status} />
-                        <StatusPill status={latestRun.status} />
-                      </div>
+                    {THREAD_FILTERS.map(({ value, label }) => (
+                      <Button
+                        key={value}
+                        type="button"
+                        size="sm"
+                        variant={threadFilter === value ? "default" : "outline"}
+                        aria-pressed={threadFilter === value}
+                        onClick={() => {
+                          setThreadFilter(value);
+                          setThreadPage(1);
+                        }}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                {filteredThreads.length === 0 ? (
+                  <DataState title="No threads match your search and filter." />
+                ) : (
+                  <>
+                    <div className="overflow-hidden rounded-xl border border-edge bg-surface">
+                      {visibleThreads.map(({ key, initialRun, latestRun, runCount }) => (
+                        <Link
+                          key={key}
+                          to="/threads/$threadId"
+                          params={{ threadId: latestRun.id }}
+                          className="group block border-b border-edge p-4 last:border-0 hover:bg-glow-soft/50 lg:p-5"
+                        >
+                          <div className="flex justify-between gap-4">
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-medium">
+                                {jobTitle(initialRun)}
+                              </div>
+                              <div className="mt-3 text-[9px] font-mono uppercase tracking-widest text-muted">
+                                {latestRun.agent} ·{" "}
+                                {formatTime(latestRun.updatedAt ?? latestRun.createdAt)} ·{" "}
+                                {runCount} {runCount === 1 ? "run" : "runs"}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <StatusDot status={latestRun.status} />
+                              <StatusPill status={latestRun.status} />
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
                     </div>
-                  </Link>
-                ))}
+                    <nav
+                      className="flex items-center justify-between gap-3"
+                      aria-label="Thread list pagination"
+                    >
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={currentPage === 1}
+                        onClick={() => setThreadPage((page) => Math.max(1, page - 1))}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-[10px] font-mono text-muted" aria-live="polite">
+                        Page {currentPage} of {pageCount}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={currentPage === pageCount}
+                        onClick={() => setThreadPage((page) => Math.min(pageCount, page + 1))}
+                      >
+                        Next
+                      </Button>
+                    </nav>
+                  </>
+                )}
               </div>
             )}
           </section>
@@ -153,7 +249,25 @@ type ProjectThread = {
   initialRun: Job;
   latestRun: Job;
   runCount: number;
+  agents: Job["agent"][];
 };
+
+type ThreadFilter = "all" | "active" | "needs_input" | "completed";
+
+const THREADS_PER_PAGE = 8;
+const THREAD_FILTERS: { value: ThreadFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "needs_input", label: "Needs Input" },
+  { value: "completed", label: "Completed" },
+];
+
+function matchesThreadFilter(status: Job["status"], filter: ThreadFilter) {
+  if (filter === "all") return true;
+  if (filter === "active") return status === "queued" || status === "running";
+  if (filter === "needs_input") return status === "needs_input";
+  return status === "done" || status === "failed" || status === "cancelled";
+}
 
 function groupJobsByThread(jobs: Job[]): ProjectThread[] {
   const jobsById = new Map(jobs.map((job) => [job.id, job]));
@@ -192,6 +306,7 @@ function groupJobsByThread(jobs: Job[]): ProjectThread[] {
         initialRun: orderedByCreation[0],
         latestRun: orderedByCreation.at(-1)!,
         runCount: runs.length,
+        agents: [...new Set(runs.map((run) => run.agent))],
       };
     })
     .sort((a, b) => timestamp(b.latestRun, true) - timestamp(a.latestRun, true));
