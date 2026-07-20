@@ -641,7 +641,7 @@ function ThreadPage() {
         {canContinue && (
           <section
             id="continue-conversation"
-            className="sticky bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] min-w-0 overflow-hidden rounded-xl border border-glow/40 bg-void/95 p-4 shadow-xl backdrop-blur lg:bottom-3 lg:p-5"
+            className="sticky bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] min-w-0 overflow-hidden rounded-xl border border-glow/40 bg-void/95 p-3 shadow-xl backdrop-blur min-[380px]:p-4 lg:bottom-3 lg:p-5"
           >
             <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-glow">
               Continue conversation
@@ -665,7 +665,7 @@ function ThreadPage() {
                   className="block truncate text-xs"
                   title={`${j.agent} · ${selectedScopeSummary}`}
                 >
-                  {j.agent} · {selectedScopeSummary}
+                  Agent: {j.agent} · Scope: {selectedScopeSummary}
                 </span>
               </span>
               <ChevronDown
@@ -691,11 +691,12 @@ function ThreadPage() {
                   {selectedScopeSummary}
                 </div>
               </div>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-3" role="group" aria-label="Repository scope">
                 {(["keep", "auto", "manual"] as const).map((mode) => (
                   <button
                     type="button"
                     key={mode}
+                    aria-pressed={followUpScope === mode}
                     onClick={() => {
                       setFollowUpScope(mode);
                       if (mode === "manual" && followUpRepositories.length === 0)
@@ -737,8 +738,18 @@ function ThreadPage() {
                 </div>
               )}
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <form
+              className="flex min-w-0 flex-col gap-2 sm:flex-row"
+              onSubmit={(event) => {
+                event.preventDefault();
+                submitFollowUp();
+              }}
+            >
+              <label htmlFor="follow-up-prompt" className="sr-only">
+                Follow-up instruction
+              </label>
               <textarea
+                id="follow-up-prompt"
                 value={followUp}
                 onChange={(event) => setFollowUp(event.target.value)}
                 rows={3}
@@ -746,13 +757,13 @@ function ThreadPage() {
                 className="w-full min-w-0 max-w-full flex-1 resize-y rounded-md border border-edge bg-surface px-3 py-2 text-base focus:border-glow/60 focus:outline-none sm:text-sm"
               />
               <button
-                onClick={submitFollowUp}
+                type="submit"
                 disabled={
                   !followUp.trim() ||
                   sendFollowUp.isPending ||
                   (followUpScope === "manual" && followUpRepositories.length === 0)
                 }
-                aria-busy={sendFollowUp.isPending}
+                aria-busy={sendFollowUp.isPending || followUpSubmitting.current}
                 className="min-h-11 w-full rounded-md bg-foreground px-5 text-[10px] font-mono uppercase text-void disabled:cursor-not-allowed disabled:bg-edge sm:min-h-10 sm:w-auto sm:self-end"
               >
                 {sendFollowUp.isPending ? (
@@ -766,7 +777,10 @@ function ThreadPage() {
                   </>
                 )}
               </button>
-            </div>
+              <span className="sr-only" role="status" aria-live="polite">
+                {sendFollowUp.isPending ? "Sending follow-up instruction" : ""}
+              </span>
+            </form>
           </section>
         )}
       </Page>
@@ -1337,5 +1351,7 @@ function EventRow({ event }: { event: JobEvent }) {
   );
 }
 const Page = ({ children }: { children: React.ReactNode }) => (
-  <div className="mx-auto max-w-[1100px] space-y-6 px-4 py-5 lg:px-8 lg:py-8">{children}</div>
+  <div className="mx-auto min-w-0 max-w-[1100px] space-y-6 overflow-x-clip py-5 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:px-8 lg:py-8">
+    {children}
+  </div>
 );
