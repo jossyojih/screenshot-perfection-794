@@ -64,7 +64,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className={`min-w-0 ${bottomBar === false ? "pb-8" : "pb-44 lg:pb-24"}`}>
+        <main className={`min-w-0 ${bottomBar === false ? "pb-8" : "pb-28 lg:pb-24"}`}>
           {children}
         </main>
 
@@ -172,17 +172,17 @@ function DesktopNavItem({
 
 function MobileBottomBar({ pathname }: { pathname: string }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-surface/90 p-4 backdrop-blur-md lg:hidden">
-      <Link to="/compose" className="flex items-center gap-3 group" aria-label="Instruct agent">
-        <div className="flex h-11 flex-1 items-center rounded-full border border-edge bg-void px-4 text-muted transition-colors group-hover:border-glow/40">
-          <span className="text-xs">Instruct agent...</span>
-        </div>
-        <span className="flex size-11 items-center justify-center rounded-full bg-foreground text-void">
-          <Plus className="size-4" />
-        </span>
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-surface/90 px-4 py-3 backdrop-blur-md lg:hidden">
+      <Link
+        to="/compose"
+        aria-label="Instruct agent"
+        title="Instruct agent"
+        className="absolute -top-14 right-4 flex size-12 items-center justify-center rounded-full bg-glow text-void shadow-[var(--shadow-glow)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60 focus-visible:ring-offset-2 focus-visible:ring-offset-void"
+      >
+        <Plus className="size-5" />
       </Link>
 
-      <nav className="mt-4 flex justify-around pt-2">
+      <nav className="flex justify-around">
         <MobileNavItem to="/" label="FEED" active={pathname === "/"} />
         <MobileNavItem to="/projects" label="PROJ" active={pathname.startsWith("/projects")} />
         <MobileNavItem to="/logs" label="LOGS" active={pathname.startsWith("/logs")} />
