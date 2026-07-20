@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
@@ -164,9 +165,18 @@ function ThreadPage() {
   });
   const active = ["queued", "running", "needs_input"].includes(job.data?.status ?? "");
   const { events, streamError } = useJobEvents(threadId, active);
+  const [activityExpanded, setActivityExpanded] = useState(() =>
+    ["queued", "running", "needs_input"].includes(job.data?.status ?? ""),
+  );
   const [reply, setReply] = useState("");
   const [followUp, setFollowUp] = useState("");
   const [followUpRequestId, setFollowUpRequestId] = useState(() => crypto.randomUUID());
+  useEffect(() => {
+    const status = job.data?.status;
+    if (status === "queued" || status === "running") setActivityExpanded(true);
+    if (status === "done" || status === "failed" || status === "cancelled")
+      setActivityExpanded(false);
+  }, [job.data?.status]);
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["job", threadId] });
     queryClient.invalidateQueries({ queryKey: ["jobs"] });
@@ -220,6 +230,18 @@ function ThreadPage() {
   const canContinue =
     ["done", "failed", "cancelled"].includes(j.status) &&
     (!conversation.data || conversation.data.at(-1)?.id === j.id);
+  const completed = ["done", "failed", "cancelled"].includes(j.status);
+  const activityId = `job-activity-${j.id}`;
+  const finalResponse = (j.finalResponse || j.status === "done") && (
+    <section className="rounded-lg border border-edge bg-surface p-4">
+      <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-glow">
+        Final response
+      </h2>
+      <div className="whitespace-pre-wrap text-sm leading-relaxed">
+        {j.finalResponse ?? "Job completed without a final response."}
+      </div>
+    </section>
+  );
   return (
     <AppShell
       title={project.data?.name ?? "Job"}
@@ -335,34 +357,42 @@ function ThreadPage() {
             {streamError}
           </div>
         )}
-        <section className="rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
-          <h2 className="mb-3 text-[11px] font-mono uppercase tracking-widest text-muted">
-            Activity
+        {completed && finalResponse}
+        <section className="overflow-hidden rounded-xl border border-edge bg-surface/40">
+          <h2>
+            <button
+              type="button"
+              aria-expanded={activityExpanded}
+              aria-controls={activityId}
+              onClick={() => setActivityExpanded((expanded) => !expanded)}
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-[11px] font-mono uppercase tracking-widest text-muted hover:bg-surface/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-glow/60 lg:px-6"
+            >
+              <span>
+                Activity · {events.length} {events.length === 1 ? "event" : "events"}
+              </span>
+              <ChevronDown
+                aria-hidden="true"
+                className={`size-4 shrink-0 transition-transform ${activityExpanded ? "rotate-180" : ""}`}
+              />
+            </button>
           </h2>
-          {events.length === 0 ? (
-            <DataState
-              title={
-                active ? "Waiting for runner events…" : "No events were recorded for this job."
-              }
-            />
-          ) : (
-            <ol className="ml-1 space-y-5 border-l border-edge pl-5">
-              {events.map((event, i) => (
-                <EventRow key={event.id ?? i} event={event} />
-              ))}
-            </ol>
-          )}
+          <div id={activityId} hidden={!activityExpanded} className="px-4 pb-4 lg:px-6 lg:pb-6">
+            {events.length === 0 ? (
+              <DataState
+                title={
+                  active ? "Waiting for runner events…" : "No events were recorded for this job."
+                }
+              />
+            ) : (
+              <ol className="ml-1 space-y-5 border-l border-edge pl-5">
+                {events.map((event, i) => (
+                  <EventRow key={event.id ?? i} event={event} />
+                ))}
+              </ol>
+            )}
+          </div>
         </section>
-        {(j.finalResponse || j.status === "done") && (
-          <section className="rounded-lg border border-edge bg-surface p-4">
-            <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-glow">
-              Final response
-            </h2>
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">
-              {j.finalResponse ?? "Job completed without a final response."}
-            </div>
-          </section>
-        )}
+        {!completed && finalResponse}
         {j.error && (
           <section className="rounded-lg border-2 border-danger/60 bg-danger-soft p-4">
             <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-danger">
