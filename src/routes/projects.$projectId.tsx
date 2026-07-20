@@ -4,7 +4,14 @@ import { GitBranch, Plus } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
-import { formatTime, getJobs, getProject, jobTitle, projectRepositories } from "@/lib/api";
+import {
+  formatTime,
+  getJobs,
+  getProject,
+  jobTitle,
+  projectRepositories,
+  type Job,
+} from "@/lib/api";
 export const Route = createFileRoute("/projects/$projectId")({
   head: () => ({ meta: [{ title: "Project — Command Center" }] }),
   component: ProjectDetail,
@@ -35,6 +42,7 @@ function ProjectDetail() {
   const p = project.data;
   const repos = projectRepositories(p);
   const projectJobs = (jobs.data ?? []).filter((j) => j.projectId === p.id);
+  const projectThreads = groupJobsByThread(projectJobs);
   return (
     <AppShell
       title={p.name}
@@ -87,7 +95,10 @@ function ProjectDetail() {
             )}
           </section>
           <section>
-            <Heading title="Jobs" meta={`${projectJobs.length} total`} />
+            <Heading
+              title="Threads"
+              meta={`${projectThreads.length} threads · ${projectJobs.length} runs`}
+            />
             {jobs.isPending ? (
               <LoadingState />
             ) : jobs.isError ? (
@@ -96,23 +107,25 @@ function ProjectDetail() {
               <DataState title="No jobs yet. Send a task to start one." />
             ) : (
               <div className="overflow-hidden rounded-xl border border-edge bg-surface">
-                {projectJobs.map((j) => (
+                {projectThreads.map(({ key, initialRun, latestRun, runCount }) => (
                   <Link
-                    key={j.id}
+                    key={key}
                     to="/threads/$threadId"
-                    params={{ threadId: j.id }}
+                    params={{ threadId: latestRun.id }}
                     className="group block border-b border-edge p-4 last:border-0 hover:bg-glow-soft/50 lg:p-5"
                   >
                     <div className="flex justify-between gap-4">
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-medium">{jobTitle(j)}</div>
+                        <div className="truncate text-sm font-medium">{jobTitle(initialRun)}</div>
                         <div className="mt-3 text-[9px] font-mono uppercase tracking-widest text-muted">
-                          {j.agent} · {formatTime(j.updatedAt ?? j.createdAt)}
+                          {latestRun.agent} ·{" "}
+                          {formatTime(latestRun.updatedAt ?? latestRun.createdAt)} · {runCount}{" "}
+                          {runCount === 1 ? "run" : "runs"}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <StatusDot status={j.status} />
-                        <StatusPill status={j.status} />
+                        <StatusDot status={latestRun.status} />
+                        <StatusPill status={latestRun.status} />
                       </div>
                     </div>
                   </Link>
@@ -134,3 +147,52 @@ const Heading = ({ title, meta }: { title: string; meta: string }) => (
     <span className="text-[10px] font-mono text-muted">{meta}</span>
   </div>
 );
+
+type ProjectThread = {
+  key: string;
+  initialRun: Job;
+  latestRun: Job;
+  runCount: number;
+};
+
+function groupJobsByThread(jobs: Job[]): ProjectThread[] {
+  const jobsById = new Map(jobs.map((job) => [job.id, job]));
+  const groups = new Map<string, Job[]>();
+
+  const threadKey = (job: Job) => {
+    if (job.threadId) return job.threadId;
+
+    let current = job;
+    const visited = new Set([job.id]);
+    while (current.parentJobId && !visited.has(current.parentJobId)) {
+      const parent = jobsById.get(current.parentJobId);
+      if (!parent) return current.parentJobId;
+      if (parent.threadId) return parent.threadId;
+      visited.add(parent.id);
+      current = parent;
+    }
+    return current.id;
+  };
+
+  for (const job of jobs) {
+    const key = threadKey(job);
+    groups.set(key, [...(groups.get(key) ?? []), job]);
+  }
+
+  const timestamp = (job: Job, preferUpdated = false) =>
+    Date.parse(
+      (preferUpdated ? (job.updatedAt ?? job.createdAt) : (job.createdAt ?? job.updatedAt)) ?? "",
+    ) || 0;
+
+  return [...groups.entries()]
+    .map(([key, runs]) => {
+      const orderedByCreation = [...runs].sort((a, b) => timestamp(a) - timestamp(b));
+      return {
+        key,
+        initialRun: orderedByCreation[0],
+        latestRun: orderedByCreation.at(-1)!,
+        runCount: runs.length,
+      };
+    })
+    .sort((a, b) => timestamp(b.latestRun, true) - timestamp(a.latestRun, true));
+}
