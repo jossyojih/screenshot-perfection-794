@@ -898,12 +898,8 @@ function ReviewChanges({ jobId }: { jobId: string }) {
   );
   const reviewable = reviewableRepositories.length > 0;
   const promoted =
-    reviewable &&
-    reviewableRepositories.every((repo) =>
-      data.promotion?.repositories.some(
-        (result) => result.repositoryId === repo.repositoryId && result.status === "promoted",
-      ),
-    );
+    Boolean(data.promotion?.repositories.length) &&
+    data.promotion!.repositories.every((result) => result.status === "promoted");
   const failed = data.promotion?.repositories.filter((repo) => repo.status === "failed") ?? [];
   if (!open && reviewable && !promoted)
     return (
@@ -1030,6 +1026,10 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                 (r) => r.repositoryId === repo.repositoryId,
               );
               const checked = selected.includes(repo.repositoryId);
+              const additions = result?.status === "promoted" ? result.additions : repo.additions;
+              const deletions = result?.status === "promoted" ? result.deletions : repo.deletions;
+              const changedFiles =
+                result?.status === "promoted" ? result.changedFiles : repo.changedFiles.length;
               return (
                 <article
                   key={repo.repositoryId}
@@ -1056,7 +1056,8 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                       <div className="flex flex-col items-start gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
                         <h3 className="break-words font-medium">{repo.repositoryName}</h3>
                         <span className="font-mono text-[10px] text-muted">
-                          +{repo.additions} / −{repo.deletions}
+                          {changedFiles} {changedFiles === 1 ? "file" : "files"} · +{additions} / −
+                          {deletions}
                         </span>
                       </div>
                       <div className="mt-1 break-all text-[10px] font-mono text-muted">

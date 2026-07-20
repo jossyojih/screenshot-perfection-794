@@ -99,6 +99,9 @@ export interface PromotionRepository {
   status: PromotionStatus;
   commitSha?: string;
   targetBranch: string;
+  additions: number;
+  deletions: number;
+  changedFiles: number;
   error?: string;
   conflict?: boolean;
   updatedAt: string;
