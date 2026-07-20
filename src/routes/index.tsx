@@ -9,10 +9,11 @@ import {
   TriangleAlert,
   XCircle,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
+import { Button } from "@/components/ui/button";
 import {
   formatTime,
   getJobs,
@@ -260,6 +261,12 @@ function ThreadSection({
   detail?: "running";
   showDisplayCount?: boolean;
 }) {
+  const [page, setPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(threads.length / SECTION_LIMIT));
+  const currentPage = Math.min(page, pageCount);
+  const firstDisplayed = (currentPage - 1) * SECTION_LIMIT;
+  const displayedThreads = threads.slice(firstDisplayed, firstDisplayed + SECTION_LIMIT);
+
   return (
     <section>
       <SectionHeading
@@ -268,7 +275,9 @@ function ThreadSection({
         viewAll={viewAll ? "/logs" : undefined}
         meta={
           showDisplayCount
-            ? `Displaying ${Math.min(threads.length, SECTION_LIMIT)} of ${threads.length}`
+            ? threads.length === 0
+              ? "Displaying 0 of 0"
+              : `Displaying ${firstDisplayed + 1}–${Math.min(firstDisplayed + SECTION_LIMIT, threads.length)} of ${threads.length}`
             : undefined
         }
       />
@@ -276,18 +285,44 @@ function ThreadSection({
         {threads.length === 0 ? (
           <DataState title={empty} />
         ) : (
-          threads
-            .slice(0, SECTION_LIMIT)
-            .map((thread) => (
-              <ThreadCard
-                key={thread.key}
-                thread={thread}
-                project={projects.get(thread.latestRun.projectId)}
-                showRunningDetail={detail === "running"}
-              />
-            ))
+          displayedThreads.map((thread) => (
+            <ThreadCard
+              key={thread.key}
+              thread={thread}
+              project={projects.get(thread.latestRun.projectId)}
+              showRunningDetail={detail === "running"}
+            />
+          ))
         )}
       </div>
+      {showDisplayCount && pageCount > 1 && (
+        <nav
+          className="mt-3 flex items-center justify-between gap-3"
+          aria-label={`${title} pagination`}
+        >
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={currentPage === 1}
+            onClick={() => setPage((value) => Math.max(1, value - 1))}
+          >
+            Previous
+          </Button>
+          <span className="text-[10px] font-mono text-muted" aria-live="polite">
+            Page {currentPage} of {pageCount}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={currentPage === pageCount}
+            onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
+          >
+            Next
+          </Button>
+        </nav>
+      )}
     </section>
   );
 }
