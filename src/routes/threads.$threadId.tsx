@@ -22,6 +22,7 @@ import {
   getConversation,
   getProject,
   getJobChanges,
+  getJobDeployments,
   jobTitle,
   projectRepositories,
   replyToJob,
@@ -30,6 +31,7 @@ import {
   type Job,
   type JobEvent,
   authenticatedFetch,
+  type Deployment,
 } from "@/lib/api";
 export const Route = createFileRoute("/threads/$threadId")({
   head: () => ({ meta: [{ title: "Job — Command Center" }] }),
@@ -738,6 +740,17 @@ function ReviewChanges({ jobId }: { jobId: string }) {
     queryKey: ["job-changes", jobId],
     queryFn: () => getJobChanges(jobId),
   });
+  const deployments = useQuery({
+    queryKey: ["job-deployments", jobId],
+    queryFn: () => getJobDeployments(jobId),
+    enabled: Boolean(changes.data?.promotion),
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((deployment) =>
+        ["queued", "deploying"].includes(deployment.status),
+      )
+        ? 2_000
+        : false,
+  });
   useEffect(() => {
     if (!changes.data || selected.length) return;
     setSelected(
@@ -760,6 +773,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
     onSettled: async () => {
       try {
         await queryClient.invalidateQueries({ queryKey: ["job-changes", jobId] });
+        await queryClient.invalidateQueries({ queryKey: ["job-deployments", jobId] });
       } finally {
         submissionGuard.current = false;
         setSubmitting(false);
@@ -841,9 +855,13 @@ function ReviewChanges({ jobId }: { jobId: string }) {
             <CheckCircle2 className="size-4" /> Pushed to GitHub
           </div>
           <p className="mt-1 text-xs text-muted">
-            Source changes were pushed. Deployment status is not tracked here.
+            Source changes were pushed. Eligible backend deployments run automatically; frontend
+            deployment remains managed by Render.
           </p>
         </div>
+      )}
+      {deployments.data && deployments.data.length > 0 && (
+        <DeploymentProgress deployments={deployments.data} />
       )}
       {failed.length > 0 && !submitting && (
         <div className="border-b border-alert/30 bg-alert-soft p-4">
@@ -1002,7 +1020,8 @@ function ReviewChanges({ jobId }: { jobId: string }) {
             </h3>
             <p className="mt-2 text-sm text-muted">
               This will commit the selected job changes and push them to {selected.length} target{" "}
-              {selected.length === 1 ? "branch" : "branches"}. It does not deploy them.
+              {selected.length === 1 ? "branch" : "branches"}. An approved backend push queues its
+              exact commit for EC2 deployment; frontend pushes continue through Render.
             </p>
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
@@ -1019,9 +1038,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                 onClick={submitPromotion}
                 className="flex min-h-10 items-center justify-center gap-2 rounded-md bg-glow px-4 py-2 text-sm font-semibold text-void disabled:bg-edge disabled:text-muted"
               >
-                {submitting && (
-                  <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                )}
+                {submitting && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
                 {submitting ? "Pushing…" : "Approve & Push"}
               </button>
             </div>
@@ -1029,6 +1046,51 @@ function ReviewChanges({ jobId }: { jobId: string }) {
         </div>
       )}
     </section>
+  );
+}
+
+const deploymentLabels: Record<Deployment["status"], string> = {
+  queued: "Deployment queued",
+  deploying: "Deploying backend",
+  succeeded: "Backend deployed",
+  failed: "Deployment failed",
+  rolled_back: "Deployment failed · rolled back",
+};
+
+function DeploymentProgress({ deployments }: { deployments: Deployment[] }) {
+  return (
+    <div className="border-b border-edge bg-void/40 p-4" aria-live="polite">
+      {deployments.map((deployment) => {
+        const active = deployment.status === "queued" || deployment.status === "deploying";
+        const successful = deployment.status === "succeeded";
+        return (
+          <div key={deployment.id} className="flex items-start gap-2">
+            {active ? (
+              <LoaderCircle className="mt-0.5 size-4 animate-spin text-glow" aria-hidden="true" />
+            ) : successful ? (
+              <CheckCircle2 className="mt-0.5 size-4 text-glow" aria-hidden="true" />
+            ) : (
+              <TriangleAlert className="mt-0.5 size-4 text-alert" aria-hidden="true" />
+            )}
+            <div>
+              <div
+                className={`text-sm font-semibold ${successful || active ? "text-glow" : "text-alert"}`}
+              >
+                {deploymentLabels[deployment.status]}
+              </div>
+              <div className="mt-1 font-mono text-[10px] uppercase text-muted">
+                {deployment.stage.replaceAll("_", " ")} · {deployment.commitSha.slice(0, 12)}
+              </div>
+              {deployment.errorCode && (
+                <div className="mt-1 text-xs text-muted">
+                  Error code: {deployment.errorCode.replaceAll("_", " ")}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

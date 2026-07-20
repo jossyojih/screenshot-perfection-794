@@ -114,6 +114,19 @@ export interface JobChanges {
   promotion?: Promotion;
   limits: { totalDiffBytes: number; perFileDiffBytes: number };
 }
+export type DeploymentStatus = "queued" | "deploying" | "succeeded" | "failed" | "rolled_back";
+export interface Deployment {
+  id: string;
+  jobId: string;
+  promotionId: string;
+  repositoryId: string;
+  commitSha: string;
+  status: DeploymentStatus;
+  stage: string;
+  errorCode?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const configuredApi = import.meta.env.VITE_RUNNER_API_URL?.trim();
 if (!configuredApi) throw new Error("VITE_RUNNER_API_URL is required");
@@ -310,6 +323,12 @@ export async function promoteJob(
     method: "POST",
     body: JSON.stringify({ commitMessage, approvedRepositoryIds }),
   });
+}
+export async function getJobDeployments(id: string) {
+  return arrayPayload<Deployment>(
+    await request<unknown>(`/jobs/${encodeURIComponent(id)}/deployments`),
+    ["deployments", "data"],
+  );
 }
 export const projectRepositories = (project: Project) => {
   const raw = project.repositories ?? (project as unknown as { repos?: unknown[] }).repos ?? [];
