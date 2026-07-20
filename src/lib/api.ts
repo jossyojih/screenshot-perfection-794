@@ -317,7 +317,24 @@ export const projectRepositories = (project: Project) => {
     typeof repository === "string" ? { id: repository, name: repository } : repository,
   ) as Repository[];
 };
-export const jobTitle = (job: Job) => job.prompt?.split("\n")[0]?.slice(0, 100) || `Job ${job.id}`;
+export const jobTitle = (job: Job) => {
+  const prompt = job.prompt
+    ?.replace(/^\s*(?:[-*+]\s+|#+\s*|\d+[.)]\s+)/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!prompt) return `Job ${job.id}`;
+
+  const sentence = prompt.match(/^.*?[.!?](?=\s|$)/)?.[0];
+  if (sentence && sentence.length <= 72) return sentence.replace(/[.!?]+$/, "");
+
+  const phrase = prompt.split(/\s*(?:[.!?;:]|\n)\s*/)[0] || prompt;
+  if (phrase.length <= 72) return phrase;
+
+  const words = phrase.split(" ");
+  let title = words.shift() ?? "";
+  while (words.length && `${title} ${words[0]}`.length <= 69) title += ` ${words.shift()}`;
+  return `${title.replace(/[,\-–—]+$/, "")}…`;
+};
 export const statusLabel = (status: JobStatus) => status.replace("_", " ").toUpperCase();
 export const formatTime = (value?: string) =>
   value

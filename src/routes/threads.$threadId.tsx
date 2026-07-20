@@ -305,6 +305,7 @@ function ThreadPage() {
             <span className="text-[10px] font-mono text-muted">· {j.agent}</span>
           </div>
           <h1 className="text-lg font-semibold leading-tight lg:text-2xl">{jobTitle(j)}</h1>
+          <RequestPanel prompt={j.prompt} className="mt-4" />
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="rounded border border-glow/30 bg-glow-soft px-2 py-1 text-[9px] font-mono uppercase text-glow">
               {j.scopeMode ?? "manual"} scope
@@ -336,12 +337,7 @@ function ThreadPage() {
             </h2>
             <div className="space-y-3">
               {earlierRuns.map((run) => (
-                <Link
-                  key={run.id}
-                  to="/threads/$threadId"
-                  params={{ threadId: run.id }}
-                  className="block rounded-lg border border-edge bg-void/50 p-3 hover:border-glow/40"
-                >
+                <article key={run.id} className="rounded-lg border border-edge bg-void/50 p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusPill status={run.status} />
                     <span className="text-[10px] font-mono text-muted">{run.agent}</span>
@@ -351,11 +347,18 @@ function ThreadPage() {
                       </span>
                     ))}
                   </div>
-                  <p className="mt-2 line-clamp-2 text-sm">{run.prompt}</p>
+                  <Link
+                    to="/threads/$threadId"
+                    params={{ threadId: run.id }}
+                    className="mt-2 block text-sm font-medium hover:text-glow"
+                  >
+                    {jobTitle(run)}
+                  </Link>
+                  <RequestPanel prompt={run.prompt} compact className="mt-3" />
                   {run.finalResponse && (
                     <p className="mt-2 line-clamp-2 text-xs text-muted">{run.finalResponse}</p>
                   )}
-                </Link>
+                </article>
               ))}
             </div>
           </section>
@@ -678,6 +681,47 @@ function ThreadPage() {
         )}
       </Page>
     </AppShell>
+  );
+}
+
+const REQUEST_PREVIEW_LENGTH = 420;
+
+function RequestPanel({
+  prompt,
+  compact = false,
+  className = "",
+}: {
+  prompt: string;
+  compact?: boolean;
+  className?: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const request = prompt.trim();
+  const isLong = request.length > REQUEST_PREVIEW_LENGTH || request.split("\n").length > 6;
+  const visibleRequest =
+    isLong && !expanded ? `${request.slice(0, REQUEST_PREVIEW_LENGTH).trimEnd()}…` : request;
+
+  return (
+    <div
+      className={`${compact ? "rounded-md" : "rounded-lg"} border border-edge bg-void/60 p-3 lg:p-4 ${className}`}
+    >
+      <div className="text-[9px] font-mono uppercase tracking-widest text-muted">
+        Original request
+      </div>
+      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/90">
+        {visibleRequest || "No request text was recorded."}
+      </p>
+      {isLong && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
+          className="mt-3 rounded-sm text-[10px] font-mono uppercase tracking-wider text-glow hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60"
+        >
+          {expanded ? "Show less" : "Show more"}
+        </button>
+      )}
+    </div>
   );
 }
 
