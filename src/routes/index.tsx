@@ -15,6 +15,12 @@ import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   formatTime,
   getJobs,
   getProjects,
@@ -136,6 +142,7 @@ function OverviewPage() {
               projects={projectMap}
               empty="No threads need your attention."
               viewAll={attention.length > SECTION_LIMIT}
+              collapsible
             />
             <ThreadSection
               title="Running now"
@@ -261,6 +268,7 @@ function ThreadSection({
   viewAll = false,
   detail,
   showDisplayCount = false,
+  collapsible = false,
 }: {
   title: string;
   threads: ConversationThread[];
@@ -269,6 +277,7 @@ function ThreadSection({
   viewAll?: boolean;
   detail?: "running";
   showDisplayCount?: boolean;
+  collapsible?: boolean;
 }) {
   const [page, setPage] = useState(1);
   const pageCount = Math.max(1, Math.ceil(threads.length / SECTION_LIMIT));
@@ -276,20 +285,8 @@ function ThreadSection({
   const firstDisplayed = (currentPage - 1) * SECTION_LIMIT;
   const displayedThreads = threads.slice(firstDisplayed, firstDisplayed + SECTION_LIMIT);
 
-  return (
-    <section>
-      <SectionHeading
-        title={title}
-        count={threads.length}
-        viewAll={viewAll ? "/logs" : undefined}
-        meta={
-          showDisplayCount
-            ? threads.length === 0
-              ? "Displaying 0 of 0"
-              : `Displaying ${firstDisplayed + 1}–${Math.min(firstDisplayed + SECTION_LIMIT, threads.length)} of ${threads.length}`
-            : undefined
-        }
-      />
+  const sectionContent = (
+    <>
       <div className="space-y-3">
         {threads.length === 0 ? (
           <DataState title={empty} />
@@ -332,6 +329,54 @@ function ThreadSection({
           </Button>
         </nav>
       )}
+    </>
+  );
+
+  if (collapsible) {
+    return (
+      <section>
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="threads" className="border-none">
+            <AccordionTrigger className="hover:no-underline py-0 pb-3">
+              <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 sm:gap-3 w-full pr-2">
+                <h2 className="min-w-0 text-xs font-mono uppercase leading-5 tracking-wider text-muted sm:tracking-widest">
+                  {title}
+                </h2>
+                {viewAll ? (
+                  <Link
+                    to="/logs"
+                    className="flex min-h-11 items-center text-xs font-mono text-muted hover:text-glow"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    View all
+                  </Link>
+                ) : (
+                  <span className="text-xs font-mono text-muted">{threads.length}</span>
+                )}
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>{sectionContent}</AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </section>
+    );
+  }
+
+  return (
+    <section>
+      <SectionHeading
+        title={title}
+        count={threads.length}
+        viewAll={viewAll ? "/logs" : undefined}
+        meta={
+          showDisplayCount
+            ? threads.length === 0
+              ? "Displaying 0 of 0"
+              : `Displaying ${firstDisplayed + 1}–${Math.min(firstDisplayed + SECTION_LIMIT, threads.length)} of ${threads.length}`
+            : undefined
+        }
+      />
+      {sectionContent}
     </section>
   );
 }
