@@ -18,6 +18,7 @@ import {
   continueJob,
   errorMessage,
   formatTime,
+  getCapabilities,
   getJob,
   getConversation,
   getProject,
@@ -30,6 +31,7 @@ import {
   type JobChanges,
   type Job,
   type JobEvent,
+  type ReasoningLevel,
   authenticatedFetch,
   type Deployment,
 } from "@/lib/api";
@@ -161,6 +163,7 @@ function ThreadPage() {
   const { threadId } = Route.useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const capabilities = useQuery({ queryKey: ["capabilities"], queryFn: getCapabilities });
   const job = useQuery({
     queryKey: ["job", threadId],
     queryFn: () => getJob(threadId),
@@ -185,6 +188,8 @@ function ThreadPage() {
   const [followUp, setFollowUp] = useState("");
   const [followUpScope, setFollowUpScope] = useState<"keep" | "auto" | "manual">("keep");
   const [followUpRepositories, setFollowUpRepositories] = useState<string[]>([]);
+  const [followUpModel, setFollowUpModel] = useState<string | undefined>(undefined);
+  const [followUpReasoning, setFollowUpReasoning] = useState<ReasoningLevel | undefined>(undefined);
   const [followUpSettingsOpen, setFollowUpSettingsOpen] = useState(false);
   const [followUpRequestId, setFollowUpRequestId] = useState(() => crypto.randomUUID());
   const followUpSubmitting = useRef(false);
@@ -218,6 +223,8 @@ function ThreadPage() {
       requestId: string;
       scope: "keep" | "auto" | "manual";
       repositories: string[];
+      model?: string;
+      reasoningLevel?: ReasoningLevel;
     }) =>
       continueJob(
         threadId,
@@ -229,6 +236,9 @@ function ThreadPage() {
               scopeMode: input.scope,
               requestedRepositoryIds: input.scope === "manual" ? input.repositories : undefined,
             },
+        input.model || input.reasoningLevel
+          ? { model: input.model, reasoningLevel: input.reasoningLevel }
+          : undefined,
       ),
     onSuccess: (created) => {
       setFollowUp("");
@@ -280,6 +290,7 @@ function ThreadPage() {
         : followUpRepositories.length
           ? followUpRepositories.map((id) => repoNames.get(id) ?? id).join(", ")
           : "No repositories selected";
+  const agentCapability = capabilities.data?.agents.find((a) => a.id === j.agent);
   const submitFollowUp = () => {
     const prompt = followUp.trim();
     if (
@@ -295,6 +306,8 @@ function ThreadPage() {
       requestId: followUpRequestId,
       scope: followUpScope,
       repositories: [...followUpRepositories],
+      model: followUpModel,
+      reasoningLevel: followUpReasoning,
     });
   };
   const activityId = `job-activity-${j.id}`;
@@ -340,7 +353,10 @@ function ThreadPage() {
           <div className="mb-2 flex items-center gap-2">
             <StatusDot status={j.status} />
             <StatusPill status={j.status} />
-            <span className="text-[10px] font-mono text-muted">· {j.agent}</span>
+            <span className="text-[10px] font-mono text-muted">
+              · {j.agent} · {j.model}
+              {j.reasoningLevel && ` · ${j.reasoningLevel}`}
+            </span>
           </div>
           <h1 className="text-lg font-semibold leading-tight lg:text-2xl">{jobTitle(j)}</h1>
           <RequestPanel prompt={j.prompt} className="mt-4" />
@@ -378,7 +394,10 @@ function ThreadPage() {
                 <article key={run.id} className="rounded-lg border border-edge bg-void/50 p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusPill status={run.status} />
-                    <span className="text-[10px] font-mono text-muted">{run.agent}</span>
+                    <span className="text-[10px] font-mono text-muted">
+                      {run.agent} · {run.model}
+                      {run.reasoningLevel && ` · ${run.reasoningLevel}`}
+                    </span>
                     {run.selectedRepositoryIds.map((id) => (
                       <span key={id} className="text-[9px] font-mono text-muted">
                         {repoNames.get(id) ?? id}
@@ -737,6 +756,50 @@ function ThreadPage() {
                   )}
                 </div>
               )}
+              {agentCapability && agentCapability.models.length > 1 && (
+                <div className="mt-3">
+                  <label className="mb-2 block text-[10px] font-mono uppercase tracking-wider text-muted">
+                    {j.agent === "claude" ? "Claude Model" : "Model"} (optional)
+                  </label>
+                  <select
+                    value={followUpModel ?? ""}
+                    onChange={(e) => setFollowUpModel(e.target.value || undefined)}
+                    className="w-full rounded-md border border-edge bg-surface px-3 py-2 text-xs font-mono"
+                  >
+                    <option value="">Keep current ({j.model})</option>
+                    {agentCapability.models.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {agentCapability &&
+                agentCapability.reasoningLevels.length > 0 &&
+                j.agent === "codex" && (
+                  <div className="mt-3">
+                    <label className="mb-2 block text-[10px] font-mono uppercase tracking-wider text-muted">
+                      Reasoning Level (optional)
+                    </label>
+                    <select
+                      value={followUpReasoning ?? ""}
+                      onChange={(e) =>
+                        setFollowUpReasoning(
+                          (e.target.value || undefined) as ReasoningLevel | undefined,
+                        )
+                      }
+                      className="w-full rounded-md border border-edge bg-surface px-3 py-2 text-xs font-mono"
+                    >
+                      <option value="">Keep current ({j.reasoningLevel})</option>
+                      {agentCapability.reasoningLevels.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
             </div>
             <form
               className="flex min-w-0 flex-col gap-2 sm:flex-row"

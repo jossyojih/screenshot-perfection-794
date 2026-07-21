@@ -11,13 +11,17 @@ import { groupJobsByThread } from "@/lib/threads";
 import {
   errorMessage,
   formatTime,
+  getCapabilities,
   getJobs,
   getProject,
   jobTitle,
   projectRepositories,
+  updateProjectAgentDefaults,
   updateProjectPromotionPolicy,
   updateRepositoryPromotionPolicy,
+  type Agent,
   type PromotionPolicy,
+  type ReasoningLevel,
 } from "@/lib/api";
 export const Route = createFileRoute("/projects/$projectId")({
   head: () => ({ meta: [{ title: "Project — Command Center" }] }),
@@ -33,12 +37,18 @@ function ProjectDetail() {
     queryKey: ["project", projectId],
     queryFn: () => getProject(projectId),
   });
+  const capabilities = useQuery({ queryKey: ["capabilities"], queryFn: getCapabilities });
   const jobs = useQuery({ queryKey: ["jobs"], queryFn: getJobs, refetchInterval: 5000 });
   const policyUpdate = useMutation({
     mutationFn: (input: { repositoryId?: string; policy: PromotionPolicy | null }) =>
       input.repositoryId
         ? updateRepositoryPromotionPolicy(projectId, input.repositoryId, input.policy)
         : updateProjectPromotionPolicy(projectId, input.policy as PromotionPolicy),
+    onSuccess: (updated) => queryClient.setQueryData(["project", projectId], updated),
+  });
+  const agentDefaultsUpdate = useMutation({
+    mutationFn: (input: { agent: Agent; model?: string; reasoningLevel?: ReasoningLevel }) =>
+      updateProjectAgentDefaults(projectId, input),
     onSuccess: (updated) => queryClient.setQueryData(["project", projectId], updated),
   });
   if (project.isPending)
@@ -107,20 +117,129 @@ function ProjectDetail() {
         <div className="space-y-6">
           <section className="rounded-xl border border-edge bg-surface p-4 lg:p-5">
             <Heading title="Project Settings" meta="Backend enforced" />
-            <label className="block text-xs font-medium" htmlFor="project-promotion-policy">
-              Default promotion policy
-            </label>
-            <select
-              id="project-promotion-policy"
-              value={p.promotionPolicy ?? "review_required"}
-              disabled={policyUpdate.isPending}
-              onChange={(event) =>
-                policyUpdate.mutate({ policy: event.target.value as PromotionPolicy })
-              }
-              className="mt-2 min-h-11 w-full rounded-md border border-edge bg-void px-3 text-sm md:max-w-md"
-            >
-              <PolicyOptions />
-            </select>
+            <div className="mb-6">
+              <label className="block text-xs font-medium" htmlFor="project-promotion-policy">
+                Default promotion policy
+              </label>
+              <select
+                id="project-promotion-policy"
+                value={p.promotionPolicy ?? "review_required"}
+                disabled={policyUpdate.isPending}
+                onChange={(event) =>
+                  policyUpdate.mutate({ policy: event.target.value as PromotionPolicy })
+                }
+                className="mt-2 min-h-11 w-full rounded-md border border-edge bg-void px-3 text-sm md:max-w-md"
+              >
+                <PolicyOptions />
+              </select>
+            </div>
+            {capabilities.data && (
+              <div>
+                <h3 className="mb-3 text-xs font-medium">Agent and Model Defaults</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-mono uppercase tracking-wider text-muted">
+                      Default Agent
+                    </label>
+                    <select
+                      value={p.defaultAgent ?? ""}
+                      disabled={agentDefaultsUpdate.isPending}
+                      onChange={(event) => {
+                        const agent = event.target.value as Agent;
+                        const capability = capabilities.data.agents.find((a) => a.id === agent);
+                        if (capability) {
+                          agentDefaultsUpdate.mutate({
+                            agent,
+                            model: capability.defaults.model,
+                            reasoningLevel: capability.defaults.reasoningLevel,
+                          });
+                        }
+                      }}
+                      className="mt-2 min-h-11 w-full rounded-md border border-edge bg-void px-3 text-sm font-mono md:max-w-md"
+                    >
+                      <option value="">System default ({capabilities.data.defaults.agent})</option>
+                      {capabilities.data.agents.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {p.defaultAgent &&
+                    capabilities.data.agents.find((a) => a.id === p.defaultAgent) && (
+                      <>
+                        {capabilities.data.agents.find((a) => a.id === p.defaultAgent)!.models
+                          .length > 1 && (
+                          <div>
+                            <label className="block text-[10px] font-mono uppercase tracking-wider text-muted">
+                              Default Model
+                            </label>
+                            <select
+                              value={p.defaultModel ?? ""}
+                              disabled={agentDefaultsUpdate.isPending}
+                              onChange={(event) =>
+                                agentDefaultsUpdate.mutate({
+                                  agent: p.defaultAgent!,
+                                  model: event.target.value,
+                                  reasoningLevel: p.defaultReasoningLevel,
+                                })
+                              }
+                              className="mt-2 min-h-11 w-full rounded-md border border-edge bg-void px-3 text-sm font-mono md:max-w-md"
+                            >
+                              {capabilities.data.agents
+                                .find((a) => a.id === p.defaultAgent)!
+                                .models.map((m) => (
+                                  <option key={m} value={m}>
+                                    {m}
+                                  </option>
+                                ))}
+                            </select>
+                          </div>
+                        )}
+                        {p.defaultAgent === "codex" &&
+                          capabilities.data.agents.find((a) => a.id === "codex")!.reasoningLevels
+                            .length > 0 && (
+                            <div>
+                              <label className="block text-[10px] font-mono uppercase tracking-wider text-muted">
+                                Default Reasoning Level
+                              </label>
+                              <select
+                                value={p.defaultReasoningLevel ?? ""}
+                                disabled={agentDefaultsUpdate.isPending}
+                                onChange={(event) =>
+                                  agentDefaultsUpdate.mutate({
+                                    agent: p.defaultAgent!,
+                                    model: p.defaultModel,
+                                    reasoningLevel: event.target.value as ReasoningLevel,
+                                  })
+                                }
+                                className="mt-2 min-h-11 w-full rounded-md border border-edge bg-void px-3 text-sm font-mono md:max-w-md"
+                              >
+                                {capabilities.data.agents
+                                  .find((a) => a.id === "codex")!
+                                  .reasoningLevels.map((r) => (
+                                    <option key={r} value={r}>
+                                      {r}
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+                          )}
+                      </>
+                    )}
+                </div>
+                {agentDefaultsUpdate.isError && (
+                  <p role="alert" className="mt-3 text-xs text-danger">
+                    Could not save agent defaults: {errorMessage(agentDefaultsUpdate.error)}
+                  </p>
+                )}
+                {agentDefaultsUpdate.isPending && (
+                  <p aria-live="polite" className="mt-3 text-xs text-muted">
+                    Saving agent defaults…
+                  </p>
+                )}
+              </div>
+            )}
             {(p.promotionPolicy === "auto_push" ||
               repos.some((repo) => repo.promotionPolicyOverride === "auto_push")) && (
               <div className="mt-3 flex gap-2 rounded-lg border border-alert/40 bg-alert-soft p-3 text-xs text-alert">

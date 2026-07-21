@@ -4,7 +4,15 @@ import { Check, GitBranch, Send, Sparkles, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
-import { createJob, getProjects, projectRepositories, type Agent, type ScopeMode } from "@/lib/api";
+import {
+  createJob,
+  getCapabilities,
+  getProjects,
+  projectRepositories,
+  type Agent,
+  type ReasoningLevel,
+  type ScopeMode,
+} from "@/lib/api";
 export const Route = createFileRoute("/compose")({
   validateSearch: (s: Record<string, unknown>) => ({
     projectId: typeof s.projectId === "string" ? s.projectId : undefined,
@@ -17,14 +25,31 @@ function ComposePage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const projects = useQuery({ queryKey: ["projects"], queryFn: getProjects });
+  const capabilities = useQuery({ queryKey: ["capabilities"], queryFn: getCapabilities });
   const [projectId, setProjectId] = useState(search.projectId ?? "");
   const [selected, setSelected] = useState<string[]>([]);
   const [scopeMode, setScopeMode] = useState<ScopeMode>("auto");
   const [prompt, setPrompt] = useState("");
-  const [agent, setAgent] = useState<Agent>("codex");
+  const [agent, setAgent] = useState<Agent | undefined>(undefined);
+  const [model, setModel] = useState<string | undefined>(undefined);
+  const [reasoningLevel, setReasoningLevel] = useState<ReasoningLevel | undefined>(undefined);
   const project = projects.data?.find((p) => p.id === projectId) ?? projects.data?.[0];
   const selectedProjectId = project?.id;
   const repos = project ? projectRepositories(project) : [];
+  const agentCapability = capabilities.data?.agents.find((a) => a.id === agent);
+  const effectiveAgent =
+    agent ?? project?.defaultAgent ?? capabilities.data?.defaults.agent ?? "codex";
+  const effectiveCapability =
+    capabilities.data?.agents.find((a) => a.id === effectiveAgent) ?? capabilities.data?.agents[0];
+  const effectiveModel =
+    model ??
+    (agent === project?.defaultAgent ? project?.defaultModel : undefined) ??
+    effectiveCapability?.defaults.model ??
+    "";
+  const effectiveReasoning =
+    reasoningLevel ??
+    (agent === project?.defaultAgent ? project?.defaultReasoningLevel : undefined) ??
+    effectiveCapability?.defaults.reasoningLevel;
   useEffect(() => {
     if (!projectId && projects.data?.[0]) setProjectId(projects.data[0].id);
   }, [projectId, projects.data]);
@@ -36,16 +61,19 @@ function ComposePage() {
     mutationFn: createJob,
     onSuccess: (job) => navigate({ to: "/threads/$threadId", params: { threadId: job.id } }),
   });
-  const dispatch = () =>
-    project &&
+  const dispatch = () => {
+    if (!project || !effectiveAgent) return;
     mutation.mutate({
       projectId: project.id,
       prompt: prompt.trim(),
       scopeMode,
       requestedRepositoryIds: scopeMode === "manual" ? selected : [],
-      agent,
+      agent: effectiveAgent,
+      model: effectiveModel,
+      reasoningLevel: effectiveReasoning,
     });
-  if (projects.isPending)
+  };
+  if (projects.isPending || capabilities.isPending)
     return (
       <AppShell title="New instruction">
         <Page>
@@ -58,6 +86,14 @@ function ComposePage() {
       <AppShell title="New instruction">
         <Page>
           <ErrorState error={projects.error} retry={() => projects.refetch()} />
+        </Page>
+      </AppShell>
+    );
+  if (capabilities.isError)
+    return (
+      <AppShell title="New instruction">
+        <Page>
+          <ErrorState error={capabilities.error} retry={() => capabilities.refetch()} />
         </Page>
       </AppShell>
     );
@@ -82,7 +118,8 @@ function ComposePage() {
                     : `${selected.length} selected`}
               </div>
               <div className="mt-1 text-[9px] font-mono uppercase tracking-widest text-muted">
-                {agent}
+                {effectiveAgent} · {effectiveModel}
+                {effectiveReasoning && ` · ${effectiveReasoning}`}
               </div>
             </div>
             <button
@@ -226,18 +263,92 @@ function ComposePage() {
                 />
               </section>
               <section>
-                <Title>Agent</Title>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["codex", "claude"] as Agent[]).map((a) => (
-                    <button
-                      key={a}
-                      onClick={() => setAgent(a)}
-                      className={`rounded-lg border p-4 text-left text-xs font-mono uppercase ${agent === a ? "border-glow/60 bg-glow-soft text-glow" : "border-edge bg-surface"}`}
-                    >
-                      {a}
-                    </button>
-                  ))}
-                </div>
+                <Title>Agent and Model</Title>
+                {capabilities.data ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="mb-2 block text-[10px] font-mono uppercase tracking-widest text-muted">
+                        Agent
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {capabilities.data.agents.map((a) => {
+                          const isSelected = agent === a.id;
+                          const isDefault = !agent && a.id === effectiveAgent;
+                          return (
+                            <button
+                              key={a.id}
+                              onClick={() => {
+                                setAgent(a.id);
+                                setModel(undefined);
+                                setReasoningLevel(undefined);
+                              }}
+                              className={`rounded-lg border p-3 text-left text-xs font-mono uppercase ${
+                                isSelected
+                                  ? "border-glow/60 bg-glow-soft text-glow"
+                                  : isDefault
+                                    ? "border-glow/30 bg-glow-soft/50"
+                                    : "border-edge bg-surface"
+                              }`}
+                            >
+                              {a.id}
+                              {isDefault && !isSelected && (
+                                <span className="ml-1 text-[8px] text-muted">(default)</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {effectiveCapability && effectiveCapability.models.length > 1 && (
+                      <div>
+                        <label className="mb-2 block text-[10px] font-mono uppercase tracking-widest text-muted">
+                          {effectiveAgent === "claude" ? "Claude Model" : "Model"}
+                        </label>
+                        <select
+                          value={model ?? ""}
+                          onChange={(e) => setModel(e.target.value || undefined)}
+                          className="w-full rounded-lg border border-edge bg-surface p-3 text-xs font-mono"
+                        >
+                          <option value="">Default ({effectiveCapability.defaults.model})</option>
+                          {effectiveCapability.models.map((m) => (
+                            <option key={m} value={m}>
+                              {m}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {effectiveCapability &&
+                      effectiveCapability.reasoningLevels.length > 0 &&
+                      effectiveAgent === "codex" && (
+                        <div>
+                          <label className="mb-2 block text-[10px] font-mono uppercase tracking-widest text-muted">
+                            Reasoning Level
+                          </label>
+                          <select
+                            value={reasoningLevel ?? ""}
+                            onChange={(e) =>
+                              setReasoningLevel(
+                                (e.target.value || undefined) as ReasoningLevel | undefined,
+                              )
+                            }
+                            className="w-full rounded-lg border border-edge bg-surface p-3 text-xs font-mono"
+                          >
+                            <option value="">
+                              Default ({effectiveCapability.defaults.reasoningLevel})
+                            </option>
+                            {effectiveCapability.reasoningLevels.map((r) => (
+                              <option key={r} value={r}>
+                                {r}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                  </div>
+                ) : (
+                  <LoadingState />
+                )}
               </section>
               {mutation.isError && <ErrorState error={mutation.error} />}
             </div>
