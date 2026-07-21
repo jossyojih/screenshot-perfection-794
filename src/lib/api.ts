@@ -1,5 +1,5 @@
 export type Agent = "mock" | "codex" | "claude";
-export type ReasoningLevel = "low" | "medium" | "high";
+export type ReasoningLevel = "low" | "medium" | "high" | "xhigh" | "max";
 export type JobStatus = "queued" | "running" | "needs_input" | "failed" | "cancelled" | "done";
 export type ScopeMode = "auto" | "manual" | "all";
 export type PromotionPolicy = "review_required" | "auto_push" | "read_only";
