@@ -191,6 +191,8 @@ function ThreadPage() {
   const [followUpModel, setFollowUpModel] = useState<string | undefined>(undefined);
   const [followUpReasoning, setFollowUpReasoning] = useState<ReasoningLevel | undefined>(undefined);
   const [followUpSettingsOpen, setFollowUpSettingsOpen] = useState(false);
+  const [earlierRunsOpen, setEarlierRunsOpen] = useState(false);
+  const [expandedEarlierRun, setExpandedEarlierRun] = useState<string>();
   const [followUpRequestId, setFollowUpRequestId] = useState(() => crypto.randomUUID());
   const followUpSubmitting = useRef(false);
   useEffect(() => {
@@ -199,6 +201,10 @@ function ThreadPage() {
     if (status === "done" || status === "failed" || status === "cancelled")
       setActivityExpanded(false);
   }, [job.data?.status]);
+  useEffect(() => {
+    setEarlierRunsOpen(false);
+    setExpandedEarlierRun(undefined);
+  }, [threadId]);
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["job", threadId] });
     queryClient.invalidateQueries({ queryKey: ["jobs"] });
@@ -385,11 +391,22 @@ function ThreadPage() {
           />
         </section>
         {earlierRuns.length > 0 && (
-          <section className="rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
-            <h2 className="mb-3 text-[11px] font-mono uppercase tracking-widest text-muted">
-              Earlier conversation runs
-            </h2>
-            <div className="space-y-3">
+          <details className="group rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60 [&::-webkit-details-marker]:hidden">
+              <span className="text-[11px] font-mono uppercase tracking-widest text-muted">
+                Earlier conversation runs
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="rounded-full border border-edge bg-void/50 px-2 py-1 text-[9px] font-mono text-muted">
+                  {earlierRuns.length} {earlierRuns.length === 1 ? "run" : "runs"}
+                </span>
+                <ChevronDown
+                  aria-hidden="true"
+                  className="h-4 w-4 text-muted transition-transform group-open:rotate-180"
+                />
+              </span>
+            </summary>
+            <div className="mt-4 space-y-3 border-t border-edge pt-4">
               {earlierRuns.map((run) => (
                 <article key={run.id} className="rounded-lg border border-edge bg-void/50 p-3">
                   <div className="flex flex-wrap items-center gap-2">
@@ -418,7 +435,7 @@ function ThreadPage() {
                 </article>
               ))}
             </div>
-          </section>
+          </details>
         )}
         {(j.status === "queued" || j.status === "running") && (
           <section className="rounded-lg border border-glow/30 bg-glow-soft p-4">
