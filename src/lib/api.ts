@@ -1,6 +1,8 @@
 export type Agent = "mock" | "codex" | "claude";
+export type ReasoningLevel = "low" | "medium" | "high" | "xhigh" | "max";
 export type JobStatus = "queued" | "running" | "needs_input" | "failed" | "cancelled" | "done";
 export type ScopeMode = "auto" | "manual" | "all";
+export type PromotionPolicy = "review_required" | "auto_push" | "read_only";
 export interface ScopeReason {
   repositoryId: string;
   reason: string;
@@ -11,6 +13,8 @@ export interface Repository {
   url?: string;
   defaultBranch?: string;
   status?: string;
+  promotionPolicyOverride?: PromotionPolicy;
+  effectivePromotionPolicy?: PromotionPolicy;
 }
 export interface Project {
   id: string;
@@ -19,6 +23,10 @@ export interface Project {
   repositories: Repository[];
   createdAt?: string;
   updatedAt?: string;
+  promotionPolicy?: PromotionPolicy;
+  defaultAgent?: Agent;
+  defaultModel?: string;
+  defaultReasoningLevel?: ReasoningLevel;
 }
 export interface RepositoryResult {
   repositoryId?: string;
@@ -48,6 +56,8 @@ export interface Job {
   parentJobId?: string;
   threadId?: string;
   agent: Agent;
+  model: string;
+  reasoningLevel?: ReasoningLevel;
   status: JobStatus;
   createdAt?: string;
   updatedAt?: string;
@@ -88,12 +98,16 @@ export interface ChangeRepository {
   additions: number;
   deletions: number;
   hasChanges: boolean;
+  effectivePromotionPolicy: PromotionPolicy;
 }
 export interface PromotionRepository {
   repositoryId: string;
   status: PromotionStatus;
   commitSha?: string;
   targetBranch: string;
+  additions: number;
+  deletions: number;
+  changedFiles: number;
   error?: string;
   conflict?: boolean;
   updatedAt: string;
@@ -243,6 +257,22 @@ export async function getProject(id: string) {
     "data",
   ]);
 }
+export async function updateProjectPromotionPolicy(id: string, promotionPolicy: PromotionPolicy) {
+  return request<Project>(`/projects/${encodeURIComponent(id)}/promotion-policy`, {
+    method: "PUT",
+    body: JSON.stringify({ promotionPolicy }),
+  });
+}
+export async function updateRepositoryPromotionPolicy(
+  id: string,
+  repositoryId: string,
+  promotionPolicyOverride: PromotionPolicy | null,
+) {
+  return request<Project>(
+    `/projects/${encodeURIComponent(id)}/repositories/${encodeURIComponent(repositoryId)}/promotion-policy`,
+    { method: "PUT", body: JSON.stringify({ promotionPolicyOverride }) },
+  );
+}
 export async function getJobs() {
   return arrayPayload<Job>(await request<unknown>("/jobs"), ["jobs", "data"]);
 }
@@ -268,7 +298,16 @@ export async function getConversation(id: string) {
   ]);
 }
 export async function createJob(
-  input: Pick<Job, "projectId" | "prompt" | "scopeMode" | "requestedRepositoryIds" | "agent">,
+  input: Pick<
+    Job,
+    | "projectId"
+    | "prompt"
+    | "scopeMode"
+    | "requestedRepositoryIds"
+    | "agent"
+    | "model"
+    | "reasoningLevel"
+  >,
 ) {
   return objectPayload<Job>(
     await request<unknown>("/jobs", { method: "POST", body: JSON.stringify(input) }),
@@ -302,11 +341,12 @@ export async function continueJob(
   message: string,
   requestId: string,
   scope?: { scopeMode: "auto" | "manual"; requestedRepositoryIds?: string[] },
+  selection?: { model?: string; reasoningLevel?: ReasoningLevel },
 ) {
   return objectPayload<Job>(
     await request<unknown>(`/jobs/${encodeURIComponent(id)}/continue`, {
       method: "POST",
-      body: JSON.stringify({ message, requestId, ...scope }),
+      body: JSON.stringify({ message, requestId, ...scope, ...selection }),
     }),
     ["job", "data"],
   );
@@ -329,6 +369,28 @@ export async function getJobDeployments(id: string) {
     await request<unknown>(`/jobs/${encodeURIComponent(id)}/deployments`),
     ["deployments", "data"],
   );
+}
+export interface AgentCapability {
+  id: Agent;
+  models: string[];
+  reasoningLevels: ReasoningLevel[];
+  defaults: { model: string; reasoningLevel?: ReasoningLevel };
+}
+export interface Capabilities {
+  agents: AgentCapability[];
+  defaults: { agent: Agent };
+}
+export async function getCapabilities() {
+  return request<Capabilities>("/capabilities");
+}
+export async function updateProjectAgentDefaults(
+  id: string,
+  input: { agent: Agent; model?: string; reasoningLevel?: ReasoningLevel },
+) {
+  return request<Project>(`/projects/${encodeURIComponent(id)}/agent-defaults`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
 }
 export const projectRepositories = (project: Project) => {
   const raw = project.repositories ?? (project as unknown as { repos?: unknown[] }).repos ?? [];

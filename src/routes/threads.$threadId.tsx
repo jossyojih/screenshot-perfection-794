@@ -18,6 +18,7 @@ import {
   continueJob,
   errorMessage,
   formatTime,
+  getCapabilities,
   getJob,
   getConversation,
   getProject,
@@ -30,6 +31,7 @@ import {
   type JobChanges,
   type Job,
   type JobEvent,
+  type ReasoningLevel,
   authenticatedFetch,
   type Deployment,
 } from "@/lib/api";
@@ -161,6 +163,7 @@ function ThreadPage() {
   const { threadId } = Route.useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const capabilities = useQuery({ queryKey: ["capabilities"], queryFn: getCapabilities });
   const job = useQuery({
     queryKey: ["job", threadId],
     queryFn: () => getJob(threadId),
@@ -185,7 +188,11 @@ function ThreadPage() {
   const [followUp, setFollowUp] = useState("");
   const [followUpScope, setFollowUpScope] = useState<"keep" | "auto" | "manual">("keep");
   const [followUpRepositories, setFollowUpRepositories] = useState<string[]>([]);
+  const [followUpModel, setFollowUpModel] = useState<string | undefined>(undefined);
+  const [followUpReasoning, setFollowUpReasoning] = useState<ReasoningLevel | undefined>(undefined);
+  const [followUpSettingsOpen, setFollowUpSettingsOpen] = useState(false);
   const [followUpRequestId, setFollowUpRequestId] = useState(() => crypto.randomUUID());
+  const followUpSubmitting = useRef(false);
   useEffect(() => {
     const status = job.data?.status;
     if (status === "queued" || status === "running") setActivityExpanded(true);
@@ -211,23 +218,36 @@ function ThreadPage() {
     onSuccess: refresh,
   });
   const sendFollowUp = useMutation({
-    mutationFn: () =>
+    mutationFn: (input: {
+      prompt: string;
+      requestId: string;
+      scope: "keep" | "auto" | "manual";
+      repositories: string[];
+      model?: string;
+      reasoningLevel?: ReasoningLevel;
+    }) =>
       continueJob(
         threadId,
-        followUp.trim(),
-        followUpRequestId,
-        followUpScope === "keep"
+        input.prompt,
+        input.requestId,
+        input.scope === "keep"
           ? undefined
           : {
-              scopeMode: followUpScope,
-              requestedRepositoryIds: followUpScope === "manual" ? followUpRepositories : undefined,
+              scopeMode: input.scope,
+              requestedRepositoryIds: input.scope === "manual" ? input.repositories : undefined,
             },
+        input.model || input.reasoningLevel
+          ? { model: input.model, reasoningLevel: input.reasoningLevel }
+          : undefined,
       ),
     onSuccess: (created) => {
       setFollowUp("");
       setFollowUpRequestId(crypto.randomUUID());
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       void navigate({ to: "/threads/$threadId", params: { threadId: created.id } });
+    },
+    onSettled: () => {
+      followUpSubmitting.current = false;
     },
   });
   const repoNames = useMemo(
@@ -262,6 +282,34 @@ function ThreadPage() {
     ["done", "failed", "cancelled"].includes(j.status) &&
     (!conversation.data || conversation.data.at(-1)?.id === j.id);
   const completed = ["done", "failed", "cancelled"].includes(j.status);
+  const selectedScopeSummary =
+    followUpScope === "keep"
+      ? `Current scope · ${(j.resolvedRepositoryIds ?? j.selectedRepositoryIds).length} repositor${(j.resolvedRepositoryIds ?? j.selectedRepositoryIds).length === 1 ? "y" : "ies"}`
+      : followUpScope === "auto"
+        ? "Auto-select repositories"
+        : followUpRepositories.length
+          ? followUpRepositories.map((id) => repoNames.get(id) ?? id).join(", ")
+          : "No repositories selected";
+  const agentCapability = capabilities.data?.agents.find((a) => a.id === j.agent);
+  const submitFollowUp = () => {
+    const prompt = followUp.trim();
+    if (
+      !prompt ||
+      followUpSubmitting.current ||
+      sendFollowUp.isPending ||
+      (followUpScope === "manual" && followUpRepositories.length === 0)
+    )
+      return;
+    followUpSubmitting.current = true;
+    sendFollowUp.mutate({
+      prompt,
+      requestId: followUpRequestId,
+      scope: followUpScope,
+      repositories: [...followUpRepositories],
+      model: followUpModel,
+      reasoningLevel: followUpReasoning,
+    });
+  };
   const activityId = `job-activity-${j.id}`;
   const goBack = () => {
     if (window.history.length > 1) {
@@ -305,7 +353,10 @@ function ThreadPage() {
           <div className="mb-2 flex items-center gap-2">
             <StatusDot status={j.status} />
             <StatusPill status={j.status} />
-            <span className="text-[10px] font-mono text-muted">· {j.agent}</span>
+            <span className="text-[10px] font-mono text-muted">
+              · {j.agent} · {j.model}
+              {j.reasoningLevel && ` · ${j.reasoningLevel}`}
+            </span>
           </div>
           <h1 className="text-lg font-semibold leading-tight lg:text-2xl">{jobTitle(j)}</h1>
           <RequestPanel prompt={j.prompt} className="mt-4" />
@@ -343,7 +394,10 @@ function ThreadPage() {
                 <article key={run.id} className="rounded-lg border border-edge bg-void/50 p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusPill status={run.status} />
-                    <span className="text-[10px] font-mono text-muted">{run.agent}</span>
+                    <span className="text-[10px] font-mono text-muted">
+                      {run.agent} · {run.model}
+                      {run.reasoningLevel && ` · ${run.reasoningLevel}`}
+                    </span>
                     {run.selectedRepositoryIds.map((id) => (
                       <span key={id} className="text-[9px] font-mono text-muted">
                         {repoNames.get(id) ?? id}
@@ -606,80 +660,190 @@ function ThreadPage() {
         {canContinue && (
           <section
             id="continue-conversation"
-            className="sticky bottom-3 rounded-xl border border-glow/40 bg-void/95 p-4 shadow-xl backdrop-blur lg:p-5"
+            className="sticky bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] min-w-0 overflow-hidden rounded-xl border border-glow/40 bg-void/95 p-3 shadow-xl backdrop-blur min-[380px]:p-4 lg:bottom-3 lg:p-5"
           >
             <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-glow">
               Continue conversation
             </h2>
-            <p className="mb-3 text-xs text-muted">
+            <p className="mb-3 hidden text-xs text-muted sm:block">
               Starts a linked run with the same {j.agent} agent. Choose whether to retain or correct
               repository scope.
             </p>
-            <div className="mb-3 grid gap-2 sm:grid-cols-3">
-              {(["keep", "auto", "manual"] as const).map((mode) => (
-                <button
-                  type="button"
-                  key={mode}
-                  onClick={() => {
-                    setFollowUpScope(mode);
-                    if (mode === "manual" && followUpRepositories.length === 0)
-                      setFollowUpRepositories(j.resolvedRepositoryIds ?? []);
-                  }}
-                  className={`rounded-md border px-3 py-2 text-left text-xs ${followUpScope === mode ? "border-glow bg-glow-soft" : "border-edge bg-surface"}`}
+            <button
+              type="button"
+              aria-expanded={followUpSettingsOpen}
+              aria-controls="follow-up-settings"
+              onClick={() => setFollowUpSettingsOpen((open) => !open)}
+              className="mb-3 flex w-full min-w-0 items-center justify-between gap-3 rounded-md border border-edge bg-surface px-3 py-2 text-left sm:hidden"
+            >
+              <span className="min-w-0">
+                <span className="block text-[10px] font-mono uppercase tracking-wider text-muted">
+                  Settings
+                </span>
+                <span
+                  className="block truncate text-xs"
+                  title={`${j.agent} · ${selectedScopeSummary}`}
                 >
-                  {mode === "keep"
-                    ? "Keep current"
-                    : mode === "auto"
-                      ? "Auto-select again"
-                      : "Manual scope"}
-                </button>
-              ))}
-            </div>
-            {followUpScope === "manual" && (
-              <div className="mb-3 grid gap-2 sm:grid-cols-2">
-                {projectRepositories(project.data ?? { id: "", name: "", repositories: [] }).map(
-                  (repository) => (
-                    <label
-                      key={repository.id}
-                      className="flex items-center gap-2 rounded-md border border-edge bg-surface px-3 py-2 text-xs"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={followUpRepositories.includes(repository.id)}
-                        onChange={() =>
-                          setFollowUpRepositories((ids) =>
-                            ids.includes(repository.id)
-                              ? ids.filter((id) => id !== repository.id)
-                              : [...ids, repository.id],
-                          )
-                        }
-                      />
-                      {repository.name}
-                    </label>
-                  ),
-                )}
+                  Agent: {j.agent} · Scope: {selectedScopeSummary}
+                </span>
+              </span>
+              <ChevronDown
+                aria-hidden="true"
+                className={`size-4 shrink-0 transition-transform ${followUpSettingsOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            <div
+              id="follow-up-settings"
+              className={`${followUpSettingsOpen ? "block" : "hidden"} mb-3 min-w-0 rounded-lg border border-edge bg-surface/50 p-3 sm:block sm:border-0 sm:bg-transparent sm:p-0`}
+            >
+              <div className="mb-3 min-w-0 sm:hidden">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-muted">
+                  Agent
+                </div>
+                <div className="mt-1 truncate text-xs" title={j.agent}>
+                  {j.agent}
+                </div>
+                <div className="mt-3 text-[10px] font-mono uppercase tracking-wider text-muted">
+                  Repository scope
+                </div>
+                <div className="mt-1 break-words text-xs text-foreground">
+                  {selectedScopeSummary}
+                </div>
               </div>
-            )}
-            <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="grid gap-2 sm:grid-cols-3" role="group" aria-label="Repository scope">
+                {(["keep", "auto", "manual"] as const).map((mode) => (
+                  <button
+                    type="button"
+                    key={mode}
+                    aria-pressed={followUpScope === mode}
+                    onClick={() => {
+                      setFollowUpScope(mode);
+                      if (mode === "manual" && followUpRepositories.length === 0)
+                        setFollowUpRepositories(j.resolvedRepositoryIds ?? []);
+                    }}
+                    className={`rounded-md border px-3 py-2 text-left text-xs ${followUpScope === mode ? "border-glow bg-glow-soft" : "border-edge bg-surface"}`}
+                  >
+                    {mode === "keep"
+                      ? "Keep current"
+                      : mode === "auto"
+                        ? "Auto-select again"
+                        : "Manual scope"}
+                  </button>
+                ))}
+              </div>
+              {followUpScope === "manual" && (
+                <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2">
+                  {projectRepositories(project.data ?? { id: "", name: "", repositories: [] }).map(
+                    (repository) => (
+                      <label
+                        key={repository.id}
+                        className="flex items-center gap-2 rounded-md border border-edge bg-surface px-3 py-2 text-xs"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={followUpRepositories.includes(repository.id)}
+                          onChange={() =>
+                            setFollowUpRepositories((ids) =>
+                              ids.includes(repository.id)
+                                ? ids.filter((id) => id !== repository.id)
+                                : [...ids, repository.id],
+                            )
+                          }
+                        />
+                        <span className="min-w-0 break-words">{repository.name}</span>
+                      </label>
+                    ),
+                  )}
+                </div>
+              )}
+              {agentCapability && agentCapability.models.length > 1 && (
+                <div className="mt-3">
+                  <label className="mb-2 block text-[10px] font-mono uppercase tracking-wider text-muted">
+                    {j.agent === "claude" ? "Claude Model" : "Model"} (optional)
+                  </label>
+                  <select
+                    value={followUpModel ?? ""}
+                    onChange={(e) => setFollowUpModel(e.target.value || undefined)}
+                    className="w-full rounded-md border border-edge bg-surface px-3 py-2 text-xs font-mono"
+                  >
+                    <option value="">Keep current ({j.model})</option>
+                    {agentCapability.models.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {agentCapability &&
+                agentCapability.reasoningLevels.length > 0 &&
+                j.agent === "codex" && (
+                  <div className="mt-3">
+                    <label className="mb-2 block text-[10px] font-mono uppercase tracking-wider text-muted">
+                      Reasoning Level (optional)
+                    </label>
+                    <select
+                      value={followUpReasoning ?? ""}
+                      onChange={(e) =>
+                        setFollowUpReasoning(
+                          (e.target.value || undefined) as ReasoningLevel | undefined,
+                        )
+                      }
+                      className="w-full rounded-md border border-edge bg-surface px-3 py-2 text-xs font-mono"
+                    >
+                      <option value="">Keep current ({j.reasoningLevel})</option>
+                      {agentCapability.reasoningLevels.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+            </div>
+            <form
+              className="flex min-w-0 flex-col gap-2 sm:flex-row"
+              onSubmit={(event) => {
+                event.preventDefault();
+                submitFollowUp();
+              }}
+            >
+              <label htmlFor="follow-up-prompt" className="sr-only">
+                Follow-up instruction
+              </label>
               <textarea
+                id="follow-up-prompt"
                 value={followUp}
                 onChange={(event) => setFollowUp(event.target.value)}
                 rows={3}
                 placeholder="Ask a follow-up…"
-                className="min-w-0 flex-1 resize-y rounded-md border border-edge bg-surface px-3 py-2 text-sm focus:border-glow/60 focus:outline-none"
+                className="w-full min-w-0 max-w-full flex-1 resize-y rounded-md border border-edge bg-surface px-3 py-2 text-base focus:border-glow/60 focus:outline-none sm:text-sm"
               />
               <button
-                onClick={() => sendFollowUp.mutate()}
+                type="submit"
                 disabled={
                   !followUp.trim() ||
                   sendFollowUp.isPending ||
                   (followUpScope === "manual" && followUpRepositories.length === 0)
                 }
-                className="min-h-10 rounded-md bg-foreground px-5 text-[10px] font-mono uppercase text-void disabled:bg-edge sm:self-end"
+                aria-busy={sendFollowUp.isPending || followUpSubmitting.current}
+                className="min-h-11 w-full rounded-md bg-foreground px-5 text-[10px] font-mono uppercase text-void disabled:cursor-not-allowed disabled:bg-edge sm:min-h-10 sm:w-auto sm:self-end"
               >
-                {sendFollowUp.isPending ? "Sending…" : "Continue"}
+                {sendFollowUp.isPending ? (
+                  <span className="inline-flex items-center gap-2">
+                    <LoaderCircle className="size-3 animate-spin" /> Sending…
+                  </span>
+                ) : (
+                  <>
+                    <span className="sm:hidden">Instruct agent</span>
+                    <span className="hidden sm:inline">Continue</span>
+                  </>
+                )}
               </button>
-            </div>
+              <span className="sr-only" role="status" aria-live="polite">
+                {sendFollowUp.isPending ? "Sending follow-up instruction" : ""}
+              </span>
+            </form>
           </section>
         )}
       </Page>
@@ -757,7 +921,9 @@ function ReviewChanges({ jobId }: { jobId: string }) {
       changes.data.promotion
         ? changes.data.promotion.repositories.map((repo) => repo.repositoryId)
         : changes.data.repositories
-            .filter((repo) => repo.hasChanges)
+            .filter(
+              (repo) => repo.hasChanges && repo.effectivePromotionPolicy === "review_required",
+            )
             .map((repo) => repo.repositoryId),
     );
     if (changes.data.promotion) setMessage(changes.data.promotion.commitMessage);
@@ -792,25 +958,37 @@ function ReviewChanges({ jobId }: { jobId: string }) {
   };
   if (changes.isPending)
     return (
-      <section className="rounded-xl border border-glow/30 bg-glow-soft p-4 text-sm text-muted">
-        Checking for reviewable changes…
+      <section
+        className="rounded-xl border border-glow/30 bg-glow-soft p-4 text-sm text-muted"
+        aria-live="polite"
+      >
+        <div className="flex min-h-11 items-center gap-2">
+          <LoaderCircle className="size-4 shrink-0 animate-spin text-glow" aria-hidden="true" />
+          Checking for reviewable changes…
+        </div>
       </section>
     );
   if (changes.isError) return <ErrorState error={changes.error} retry={() => changes.refetch()} />;
   const data = changes.data;
-  const promoted = data.promotion?.status === "promoted";
+  const reviewableRepositories = data.repositories.filter(
+    (repo) => repo.hasChanges && repo.effectivePromotionPolicy === "review_required",
+  );
+  const reviewable = reviewableRepositories.length > 0;
+  const promoted =
+    Boolean(data.promotion?.repositories.length) &&
+    data.promotion!.repositories.every((result) => result.status === "promoted");
   const failed = data.promotion?.repositories.filter((repo) => repo.status === "failed") ?? [];
-  if (!open && data.hasChanges && !promoted)
+  if (!open && reviewable && !promoted)
     return (
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-between rounded-xl border-2 border-glow/60 bg-glow-soft p-4 text-left shadow-glow transition hover:border-glow lg:p-5"
+        className="flex min-h-16 w-full items-center justify-between gap-3 rounded-xl border-2 border-glow/60 bg-glow-soft p-4 text-left shadow-glow transition hover:border-glow lg:p-5"
       >
         <span>
           <span className="block text-sm font-semibold">Review changes</span>
           <span className="mt-1 block text-xs text-muted">
-            Inspect files and diffs before approving a Git push.
+            Awaiting review. Inspect files and diffs before approving a Git push.
           </span>
         </span>
         <GitPullRequest className="size-5 text-glow" aria-hidden="true" />
@@ -829,10 +1007,46 @@ function ReviewChanges({ jobId }: { jobId: string }) {
         </a>
       </section>
     );
+  if (!reviewable && data.hasChanges)
+    return (
+      <section className="rounded-xl border border-edge bg-surface/50 p-4">
+        <h2 className="text-sm font-semibold">Promotion results</h2>
+        <div className="mt-3 space-y-2">
+          {data.repositories
+            .filter((repo) => repo.hasChanges)
+            .map((repo) => {
+              const result = data.promotion?.repositories.find(
+                (item) => item.repositoryId === repo.repositoryId,
+              );
+              const label =
+                repo.effectivePromotionPolicy === "read_only"
+                  ? "Read-only"
+                  : result?.status === "promoted"
+                    ? "Auto-pushed"
+                    : result?.status === "failed"
+                      ? "Auto-push failed"
+                      : "Auto-push pending";
+              return (
+                <div
+                  key={repo.repositoryId}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-edge p-3"
+                >
+                  <span className="text-sm">{repo.repositoryName}</span>
+                  <span
+                    className={`text-[10px] font-mono uppercase ${label === "Auto-pushed" ? "text-glow" : label.includes("failed") ? "text-danger" : "text-muted"}`}
+                  >
+                    {label}
+                  </span>
+                </div>
+              );
+            })}
+        </div>
+      </section>
+    );
   return (
-    <section className="overflow-hidden rounded-xl border border-edge bg-surface/60">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-edge p-4 lg:p-5">
-        <div>
+    <section className="min-w-0 overflow-hidden rounded-xl border border-edge bg-surface/60">
+      <div className="flex flex-col items-stretch gap-3 border-b border-edge p-4 sm:flex-row sm:items-center sm:justify-between lg:p-5">
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold">Review changes</h2>
           <p className="mt-1 text-xs text-muted">
             Only selected repositories will be committed and pushed.
@@ -843,7 +1057,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
             type="button"
             disabled={submitting}
             onClick={() => setOpen((value) => !value)}
-            className="text-[10px] font-mono uppercase text-muted disabled:opacity-50"
+            className="min-h-11 self-start rounded-md px-2 text-[10px] font-mono uppercase text-muted disabled:opacity-50 sm:min-h-0 sm:self-auto sm:p-0"
           >
             {open ? "Collapse" : "Open review"}
           </button>
@@ -870,14 +1084,14 @@ function ReviewChanges({ jobId }: { jobId: string }) {
             {failed.some((r) => r.conflict) ? "Push conflict" : "Push failed"}
           </div>
           {failed.map((r) => (
-            <p key={r.repositoryId} className="mt-1 text-xs text-muted">
+            <p key={r.repositoryId} className="mt-1 break-words text-xs text-muted">
               {r.error}
             </p>
           ))}
         </div>
       )}
       {(open || promoted || failed.length > 0) && (
-        <div className="space-y-4 p-4 lg:p-5">
+        <div className="min-w-0 space-y-4 p-3 min-[380px]:p-4 lg:p-5">
           {data.repositories
             .filter(
               (repo) =>
@@ -889,16 +1103,20 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                 (r) => r.repositoryId === repo.repositoryId,
               );
               const checked = selected.includes(repo.repositoryId);
+              const additions = result?.status === "promoted" ? result.additions : repo.additions;
+              const deletions = result?.status === "promoted" ? result.deletions : repo.deletions;
+              const changedFiles =
+                result?.status === "promoted" ? result.changedFiles : repo.changedFiles.length;
               return (
                 <article
                   key={repo.repositoryId}
-                  className="rounded-lg border border-edge bg-void/50"
+                  className="min-w-0 overflow-hidden rounded-lg border border-edge bg-void/50"
                 >
-                  <div className="flex items-start gap-3 p-3 lg:p-4">
-                    {!promoted && (
+                  <div className="flex min-w-0 items-start gap-3 p-3 lg:p-4">
+                    {!promoted && repo.effectivePromotionPolicy === "review_required" && (
                       <input
                         type="checkbox"
-                        className="mt-1 size-4 accent-[var(--glow)]"
+                        className="size-5 shrink-0 accent-[var(--glow)]"
                         checked={checked}
                         disabled={submitting || result?.status === "promoted"}
                         onChange={(event) =>
@@ -912,14 +1130,30 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                       />
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h3 className="font-medium">{repo.repositoryName}</h3>
+                      <div className="flex flex-col items-start gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
+                        <h3 className="break-words font-medium">{repo.repositoryName}</h3>
                         <span className="font-mono text-[10px] text-muted">
-                          +{repo.additions} / −{repo.deletions}
+                          {changedFiles} {changedFiles === 1 ? "file" : "files"} · +{additions} / −
+                          {deletions}
                         </span>
                       </div>
-                      <div className="mt-1 text-[10px] font-mono text-muted">
+                      <div className="mt-1 break-all text-[10px] font-mono text-muted">
                         target: {repo.targetBranch} · base: {repo.baseCommitSha.slice(0, 12)}
+                      </div>
+                      <div
+                        className={`mt-2 text-[10px] font-mono uppercase ${repo.effectivePromotionPolicy === "auto_push" ? (result?.status === "failed" ? "text-danger" : "text-glow") : repo.effectivePromotionPolicy === "read_only" ? "text-muted" : "text-alert"}`}
+                      >
+                        {repo.effectivePromotionPolicy === "auto_push"
+                          ? result?.status === "promoted"
+                            ? "Auto-pushed"
+                            : result?.status === "failed"
+                              ? "Auto-push failed"
+                              : "Auto-push pending"
+                          : repo.effectivePromotionPolicy === "read_only"
+                            ? "Read-only"
+                            : result?.status === "failed"
+                              ? "Push failed"
+                              : "Awaiting review"}
                       </div>
                       {result && (
                         <div
@@ -935,16 +1169,19 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                       )}
                     </div>
                   </div>
-                  <div className="border-t border-edge">
+                  <div className="min-w-0 border-t border-edge">
+                    <div className="bg-surface/50 px-3 py-2 text-[9px] font-mono uppercase tracking-widest text-muted lg:px-4">
+                      Changed files
+                    </div>
                     {repo.changedFiles.map((file) => (
-                      <details key={file.path} className="border-b border-edge last:border-0">
-                        <summary className="cursor-pointer break-all px-3 py-2 font-mono text-xs lg:px-4">
+                      <details key={file.path} className="min-w-0 border-t border-edge">
+                        <summary className="min-h-11 cursor-pointer break-all px-3 py-3 font-mono text-xs lg:px-4">
                           {file.path}{" "}
                           <span className="text-muted">
                             +{file.additions} −{file.deletions}
                           </span>
                         </summary>
-                        <pre className="max-h-[32rem] overflow-auto border-t border-edge bg-black/30 p-3 text-[11px] leading-relaxed">
+                        <pre className="max-h-[60vh] w-full max-w-full overscroll-contain overflow-auto border-t border-edge bg-black/30 p-3 text-[11px] leading-relaxed [contain:inline-size]">
                           <code>{file.diff || "Binary file or metadata-only change"}</code>
                         </pre>
                         {file.truncated && (
@@ -958,8 +1195,8 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                 </article>
               );
             })}
-          {!promoted && (
-            <div className="space-y-3 rounded-lg border border-edge p-3 lg:p-4">
+          {!promoted && reviewable && (
+            <div className="sticky bottom-3 z-20 space-y-3 rounded-lg border border-glow/40 bg-void/95 p-3 shadow-xl backdrop-blur lg:static lg:border-edge lg:bg-transparent lg:p-4 lg:shadow-none">
               <label
                 htmlFor={`commit-${jobId}`}
                 className="block text-[10px] font-mono uppercase tracking-widest text-muted"
@@ -974,7 +1211,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                 maxLength={500}
                 rows={3}
                 placeholder="Describe the approved changes"
-                className="w-full resize-y rounded-md border border-edge bg-void px-3 py-2 text-sm focus:border-glow focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                className="min-h-20 w-full resize-y rounded-md border border-edge bg-void px-3 py-2 text-base focus:border-glow focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
               />
               <button
                 type="button"
@@ -1000,7 +1237,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
               </button>
               {promotion.isError && failed.length === 0 && !submitting && (
                 <p role="alert" className="text-xs text-danger">
-                  Push failed: {errorMessage(promotion.error)}
+                  <span className="break-words">Push failed: {errorMessage(promotion.error)}</span>
                 </p>
               )}
             </div>
@@ -1012,9 +1249,9 @@ function ReviewChanges({ jobId }: { jobId: string }) {
           role="alertdialog"
           aria-modal="true"
           aria-labelledby={`confirm-${jobId}`}
-          className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4"
+          className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/80 p-3 min-[380px]:p-4"
         >
-          <div className="w-full max-w-md rounded-xl border border-edge bg-void p-5 shadow-2xl">
+          <div className="my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-xl border border-edge bg-void p-4 shadow-2xl min-[380px]:p-5">
             <h3 id={`confirm-${jobId}`} className="text-lg font-semibold">
               Approve and push?
             </h3>
@@ -1028,7 +1265,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                 type="button"
                 disabled={submitting}
                 onClick={() => setConfirming(false)}
-                className="rounded-md border border-edge px-4 py-2 text-sm disabled:opacity-50"
+                className="min-h-11 rounded-md border border-edge px-4 py-2 text-sm disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -1036,7 +1273,7 @@ function ReviewChanges({ jobId }: { jobId: string }) {
                 type="button"
                 disabled={submitting}
                 onClick={submitPromotion}
-                className="flex min-h-10 items-center justify-center gap-2 rounded-md bg-glow px-4 py-2 text-sm font-semibold text-void disabled:bg-edge disabled:text-muted"
+                className="flex min-h-11 items-center justify-center gap-2 rounded-md bg-glow px-4 py-2 text-sm font-semibold text-void disabled:bg-edge disabled:text-muted"
               >
                 {submitting && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
                 {submitting ? "Pushing…" : "Approve & Push"}
@@ -1059,7 +1296,7 @@ const deploymentLabels: Record<Deployment["status"], string> = {
 
 function DeploymentProgress({ deployments }: { deployments: Deployment[] }) {
   return (
-    <div className="border-b border-edge bg-void/40 p-4" aria-live="polite">
+    <div className="space-y-3 border-b border-edge bg-void/40 p-4" aria-live="polite">
       {deployments.map((deployment) => {
         const active = deployment.status === "queued" || deployment.status === "deploying";
         const successful = deployment.status === "succeeded";
@@ -1072,13 +1309,13 @@ function DeploymentProgress({ deployments }: { deployments: Deployment[] }) {
             ) : (
               <TriangleAlert className="mt-0.5 size-4 text-alert" aria-hidden="true" />
             )}
-            <div>
+            <div className="min-w-0">
               <div
                 className={`text-sm font-semibold ${successful || active ? "text-glow" : "text-alert"}`}
               >
                 {deploymentLabels[deployment.status]}
               </div>
-              <div className="mt-1 font-mono text-[10px] uppercase text-muted">
+              <div className="mt-1 break-all font-mono text-[10px] uppercase text-muted">
                 {deployment.stage.replaceAll("_", " ")} · {deployment.commitSha.slice(0, 12)}
               </div>
               {deployment.errorCode && (
@@ -1177,5 +1414,7 @@ function EventRow({ event }: { event: JobEvent }) {
   );
 }
 const Page = ({ children }: { children: React.ReactNode }) => (
-  <div className="mx-auto max-w-[1100px] space-y-6 px-4 py-5 lg:px-8 lg:py-8">{children}</div>
+  <div className="mx-auto min-w-0 max-w-[1100px] space-y-6 overflow-x-clip py-5 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:px-8 lg:py-8">
+    {children}
+  </div>
 );
