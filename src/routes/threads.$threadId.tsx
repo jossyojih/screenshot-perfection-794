@@ -705,11 +705,12 @@ function ThreadPage() {
         {canContinue && (
           <section
             id="continue-conversation"
-            className="fixed inset-x-0 bottom-0 z-40 min-w-0 border-t border-glow/40 bg-void/95 backdrop-blur lg:left-64"
+            className="fixed inset-x-0 bottom-0 z-40 min-w-0 border-t border-glow/40 bg-void lg:left-64"
           >
             <div
               id="follow-up-settings"
-              className={`${followUpSettingsOpen ? "block" : "hidden"} absolute inset-x-0 bottom-full max-h-[65vh] min-w-0 overflow-y-auto border-y border-edge bg-void p-4 shadow-2xl lg:px-8`}
+              aria-hidden={!followUpSettingsOpen}
+              className={`absolute inset-x-0 bottom-full max-h-[65vh] min-w-0 overflow-y-auto border-y border-edge bg-void p-4 shadow-2xl transition-all duration-200 ease-out lg:px-8 ${followUpSettingsOpen ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}
             >
               <div className="mx-auto max-w-[1100px]">
                 <div className="mb-4">
@@ -845,9 +846,9 @@ function ThreadPage() {
                   id="follow-up-prompt"
                   value={followUp}
                   onChange={(event) => setFollowUp(event.target.value)}
-                  rows={3}
+                  rows={2}
                   placeholder="Ask a follow-up…"
-                  className="block w-full min-w-0 max-w-full resize-none rounded-none border-0 bg-surface px-3 pb-12 pt-3 text-base focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
+                  className="block min-h-[84px] w-full min-w-0 max-w-full resize-none rounded-none border-0 bg-void px-3 pb-11 pt-3 text-base focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
                 />
                 <div className="absolute inset-x-2 bottom-1 flex items-center justify-between gap-2">
                   <button
@@ -857,7 +858,7 @@ function ThreadPage() {
                     aria-expanded={followUpSettingsOpen}
                     aria-controls="follow-up-settings"
                     onClick={() => setFollowUpSettingsOpen((open) => !open)}
-                    className={`flex size-10 items-center justify-center rounded-md border ${followUpSettingsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge text-muted"}`}
+                    className={`flex size-9 items-center justify-center rounded-md border transition-colors duration-200 ${followUpSettingsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge bg-surface text-muted"}`}
                   >
                     <SlidersHorizontal className="size-4" aria-hidden="true" />
                   </button>
@@ -871,7 +872,7 @@ function ThreadPage() {
                       (followUpScope === "manual" && followUpRepositories.length === 0)
                     }
                     aria-busy={sendFollowUp.isPending || followUpSubmitting.current}
-                    className="flex size-10 items-center justify-center rounded-md bg-foreground text-void disabled:cursor-not-allowed disabled:bg-edge"
+                    className="flex size-9 items-center justify-center rounded-md bg-foreground text-void transition-colors duration-200 disabled:cursor-not-allowed disabled:bg-edge"
                   >
                     {sendFollowUp.isPending ? (
                       <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
@@ -887,7 +888,7 @@ function ThreadPage() {
             </form>
           </section>
         )}
-        {canContinue && <div aria-hidden="true" className="h-28" />}
+        {canContinue && <div aria-hidden="true" className="h-24" />}
       </Page>
     </AppShell>
   );
