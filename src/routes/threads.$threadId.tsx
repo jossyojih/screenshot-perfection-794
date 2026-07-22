@@ -691,17 +691,17 @@ function ThreadPage() {
               aria-expanded={followUpSettingsOpen}
               aria-controls="follow-up-settings"
               onClick={() => setFollowUpSettingsOpen((open) => !open)}
-              className="mb-3 flex w-full min-w-0 items-center justify-between gap-3 rounded-md border border-edge bg-surface px-3 py-2 text-left sm:hidden"
+              className="mb-3 flex w-full min-w-0 items-center justify-between gap-3 rounded-md border border-edge bg-surface px-3 py-2 text-left"
             >
               <span className="min-w-0">
                 <span className="block text-[10px] font-mono uppercase tracking-wider text-muted">
-                  Settings
+                  Run settings
                 </span>
                 <span
                   className="block truncate text-xs"
-                  title={`${j.agent} · ${selectedScopeSummary}`}
+                  title={`${j.agent} · ${followUpModel ?? j.model} · ${selectedScopeSummary}`}
                 >
-                  Agent: {j.agent} · Scope: {selectedScopeSummary}
+                  {j.agent} · {followUpModel ?? j.model} · {selectedScopeSummary}
                 </span>
               </span>
               <ChevronDown
@@ -711,9 +711,9 @@ function ThreadPage() {
             </button>
             <div
               id="follow-up-settings"
-              className={`${followUpSettingsOpen ? "block" : "hidden"} mb-3 min-w-0 rounded-lg border border-edge bg-surface/50 p-3 sm:block sm:border-0 sm:bg-transparent sm:p-0`}
+              className={`${followUpSettingsOpen ? "block" : "hidden"} mb-3 min-w-0 rounded-lg border border-edge bg-surface/50 p-3`}
             >
-              <div className="mb-3 min-w-0 sm:hidden">
+              <div className="mb-3 min-w-0">
                 <div className="text-[10px] font-mono uppercase tracking-wider text-muted">
                   Agent
                 </div>
