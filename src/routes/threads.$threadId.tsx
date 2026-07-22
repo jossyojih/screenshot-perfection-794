@@ -338,6 +338,8 @@ function ThreadPage() {
     });
   };
   const activityId = `job-activity-${j.id}`;
+  const hasThreadDetails =
+    earlierRuns.length > 0 || j.status === "done" || events.length > 0 || Boolean(j.usage);
   const goBack = () => {
     if (window.history.length > 1) {
       window.history.back();
@@ -392,26 +394,26 @@ function ThreadPage() {
               updated {formatTime(j.updatedAt ?? j.createdAt)}
             </span>
           </div>
-          <h1 className="mt-2 text-base font-semibold leading-tight lg:text-xl">
-            {currentRunTitle}
-          </h1>
+          <div className="mt-2 flex items-start gap-3">
+            <h1 className="min-w-0 flex-1 text-base font-semibold leading-tight lg:text-xl">
+              {currentRunTitle}
+            </h1>
+            {hasThreadDetails && (
+              <button
+                type="button"
+                aria-label={threadDetailsOpen ? "Hide thread details" : "Show thread details"}
+                title={threadDetailsOpen ? "Hide thread details" : "Thread details"}
+                aria-expanded={threadDetailsOpen}
+                onClick={() => setThreadDetailsOpen((open) => !open)}
+                className={`flex size-9 shrink-0 items-center justify-center rounded-md border transition-colors ${threadDetailsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge text-muted"}`}
+              >
+                <MoreHorizontal className="size-5" aria-hidden="true" />
+              </button>
+            )}
+          </div>
           {showOriginalRequest && <RequestPanel prompt={j.prompt} compact className="mt-3" />}
         </section>
         {finalResponse}
-        {(earlierRuns.length > 0 || j.status === "done" || events.length > 0 || j.usage) && (
-          <div className="flex justify-end">
-            <button
-              type="button"
-              aria-label={threadDetailsOpen ? "Hide thread details" : "Show thread details"}
-              title={threadDetailsOpen ? "Hide thread details" : "Thread details"}
-              aria-expanded={threadDetailsOpen}
-              onClick={() => setThreadDetailsOpen((open) => !open)}
-              className={`flex size-10 items-center justify-center rounded-md border ${threadDetailsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge text-muted"}`}
-            >
-              <MoreHorizontal className="size-5" aria-hidden="true" />
-            </button>
-          </div>
-        )}
         {threadDetailsOpen && earlierRuns.length > 0 && (
           <section className="rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
             <button
