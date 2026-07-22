@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
+  Archive,
   Command,
   FolderKanban,
   LayoutDashboard,
@@ -105,6 +106,12 @@ function DesktopSidebar({ pathname }: { pathname: string }) {
             active={pathname === "/"}
           />
           <DesktopNavItem
+            to="/archived"
+            label="Archived threads"
+            icon={<Archive className="size-4" />}
+            active={pathname.startsWith("/archived")}
+          />
+          <DesktopNavItem
             to="/projects"
             label="Projects"
             icon={<FolderKanban className="size-4" />}
@@ -149,7 +156,7 @@ function DesktopNavItem({
   icon,
   active,
 }: {
-  to: "/" | "/projects" | "/logs";
+  to: "/" | "/projects" | "/logs" | "/archived";
   label: string;
   icon: ReactNode;
   active: boolean;
@@ -186,6 +193,7 @@ function MobileBottomBar({ pathname }: { pathname: string }) {
         <MobileNavItem to="/" label="FEED" active={pathname === "/"} />
         <MobileNavItem to="/projects" label="PROJ" active={pathname.startsWith("/projects")} />
         <MobileNavItem to="/logs" label="LOGS" active={pathname.startsWith("/logs")} />
+        <MobileNavItem to="/archived" label="ARCH" active={pathname.startsWith("/archived")} />
       </nav>
     </div>
   );
@@ -196,7 +204,7 @@ function MobileNavItem({
   label,
   active,
 }: {
-  to: "/" | "/projects" | "/logs";
+  to: "/" | "/projects" | "/logs" | "/archived";
   label: string;
   active: boolean;
 }) {

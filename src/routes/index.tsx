@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
+import { ArchiveThreadButton } from "@/components/ArchiveThreadButton";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
@@ -297,6 +298,7 @@ function ThreadSection({
               thread={thread}
               project={projects.get(thread.latestRun.projectId)}
               showRunningDetail={detail === "running"}
+              archivable={title === "Needs your attention"}
             />
           ))
         )}
@@ -385,10 +387,12 @@ function ThreadCard({
   thread,
   project,
   showRunningDetail,
+  archivable,
 }: {
   thread: ConversationThread;
   project?: Project;
   showRunningDetail: boolean;
+  archivable: boolean;
 }) {
   const latest = thread.latestRun;
   const repositoryIds = latest.resolvedRepositoryIds?.length
@@ -403,13 +407,15 @@ function ThreadCard({
   const model = typeof latest.model === "string" ? latest.model : undefined;
 
   return (
-    <Link
-      to="/threads/$threadId"
-      params={{ threadId: latest.id }}
-      className="block min-w-0 rounded-xl border border-edge bg-surface p-4 hover:border-glow/30"
-    >
+    <div className="relative min-w-0 rounded-xl border border-edge bg-surface p-4 hover:border-glow/30">
+      <Link
+        to="/threads/$threadId"
+        params={{ threadId: latest.id }}
+        className="absolute inset-0 rounded-xl"
+        aria-label={`Open ${jobTitle(thread.initialRun)}`}
+      />
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div className="min-w-0">
+        <div className="pointer-events-none min-w-0">
           <div className="mb-1 break-words text-xs font-mono uppercase leading-5 tracking-wider text-muted sm:tracking-widest">
             {project?.name ?? latest.projectId} · {latest.agent}
             {model ? `/${model}` : ""}
@@ -434,9 +440,17 @@ function ThreadCard({
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">
           <StatusDot status={latest.status} />
           <StatusPill status={latest.status} />
+          {archivable && (
+            <div className="relative z-10">
+              <ArchiveThreadButton
+                threadId={latest.id}
+                active={["queued", "running", "needs_input"].includes(latest.status)}
+              />
+            </div>
+          )}
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 

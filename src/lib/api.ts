@@ -68,6 +68,15 @@ export interface Job {
   question?: string;
   [key: string]: unknown;
 }
+export interface ArchivedThread {
+  threadId: string;
+  projectId: string;
+  title: string;
+  runCount: number;
+  archivedAt: string;
+  purgeAfter: string;
+  latestStatus: JobStatus;
+}
 export interface JobEvent {
   id?: string;
   type?: string;
@@ -275,6 +284,23 @@ export async function updateRepositoryPromotionPolicy(
 }
 export async function getJobs() {
   return arrayPayload<Job>(await request<unknown>("/jobs"), ["jobs", "data"]);
+}
+export async function getArchivedThreads() {
+  return arrayPayload<ArchivedThread>(await request<unknown>("/threads/archived"), [
+    "threads",
+    "data",
+  ]);
+}
+export async function archiveThread(id: string, confirmActive: boolean) {
+  return request<ArchivedThread>(`/threads/${encodeURIComponent(id)}/archive`, {
+    method: "POST",
+    body: JSON.stringify({ confirmActive }),
+  });
+}
+export async function restoreThread(id: string) {
+  return request<{ threadId: string }>(`/threads/${encodeURIComponent(id)}/restore`, {
+    method: "POST",
+  });
 }
 export async function getRunnerHealth() {
   const response = await fetch(apiUrl("/health"), { cache: "no-store" });

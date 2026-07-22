@@ -12,6 +12,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { ArchiveThreadButton } from "@/components/ArchiveThreadButton";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
 import {
@@ -380,13 +381,20 @@ function ThreadPage() {
       title={conversationTitle}
       bottomBar={canContinue ? false : undefined}
       headerRight={
-        <button
-          type="button"
-          onClick={goBack}
-          className="text-[10px] font-mono uppercase tracking-widest text-muted"
-        >
-          ← Back
-        </button>
+        <div className="flex items-center gap-2">
+          <ArchiveThreadButton
+            threadId={j.id}
+            active={active}
+            onArchived={() => void navigate({ to: "/archived" })}
+          />
+          <button
+            type="button"
+            onClick={goBack}
+            className="text-[10px] font-mono uppercase tracking-widest text-muted"
+          >
+            ← Back
+          </button>
+        </div>
       }
     >
       <Page bottomClearance={canContinue ? composerHeight : 0}>
