@@ -431,7 +431,7 @@ function ThreadPage() {
         </section>
         {finalResponse}
         {threadDetailsOpen && earlierRuns.length > 0 && (
-          <section className="rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
+          <section className="-order-1 rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
             <button
               type="button"
               aria-expanded={earlierRunsOpen}
@@ -1492,7 +1492,7 @@ const Page = ({
   bottomClearance?: number;
 }) => (
   <div
-    className="mx-auto min-w-0 max-w-[1100px] space-y-6 overflow-x-clip py-5 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:px-8 lg:py-8"
+    className="mx-auto flex min-w-0 max-w-[1100px] flex-col gap-6 overflow-x-clip py-5 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:px-8 lg:py-8"
     style={bottomClearance ? { paddingBottom: bottomClearance } : undefined}
   >
     {children}
