@@ -161,6 +161,15 @@ function useJobEvents(jobId: string, active: boolean) {
   return { events, streamError };
 }
 
+const FOLLOW_UP_MAX_HEIGHT = 152;
+
+function resizeFollowUpInput(input: HTMLTextAreaElement | null) {
+  if (!input) return;
+  input.style.height = "auto";
+  input.style.height = `${Math.min(input.scrollHeight, FOLLOW_UP_MAX_HEIGHT)}px`;
+  input.style.overflowY = input.scrollHeight > FOLLOW_UP_MAX_HEIGHT ? "auto" : "hidden";
+}
+
 function ThreadPage() {
   const { threadId } = Route.useParams();
   const navigate = useNavigate();
@@ -198,6 +207,8 @@ function ThreadPage() {
   const [expandedEarlierRun, setExpandedEarlierRun] = useState<string>();
   const [followUpRequestId, setFollowUpRequestId] = useState(() => crypto.randomUUID());
   const followUpSubmitting = useRef(false);
+  const followUpInputRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => resizeFollowUpInput(followUpInputRef.current), [followUp]);
   useEffect(() => {
     const status = job.data?.status;
     if (status === "queued" || status === "running") setActivityExpanded(true);
@@ -843,12 +854,16 @@ function ThreadPage() {
               </label>
               <div className="relative">
                 <textarea
+                  ref={followUpInputRef}
                   id="follow-up-prompt"
                   value={followUp}
-                  onChange={(event) => setFollowUp(event.target.value)}
+                  onChange={(event) => {
+                    setFollowUp(event.target.value);
+                    resizeFollowUpInput(event.currentTarget);
+                  }}
                   rows={1}
                   placeholder="Ask a follow-up…"
-                  className="block min-h-16 w-full min-w-0 max-w-full resize-none rounded-none border-0 bg-void px-3 pb-10 pt-2 text-base focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
+                  className="block min-h-[72px] max-h-[152px] w-full min-w-0 max-w-full resize-none overflow-y-hidden rounded-none border-0 bg-void px-3 pb-12 pt-2 text-base leading-6 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
                 />
                 <div className="absolute inset-x-2 bottom-1 flex items-center justify-between gap-2">
                   <button
