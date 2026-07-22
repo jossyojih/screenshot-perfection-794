@@ -4,6 +4,7 @@ import {
   Archive,
   Command,
   FolderKanban,
+  HardDrive,
   LayoutDashboard,
   Plus,
   TerminalSquare,
@@ -123,6 +124,12 @@ function DesktopSidebar({ pathname }: { pathname: string }) {
             icon={<TerminalSquare className="size-4" />}
             active={pathname.startsWith("/logs")}
           />
+          <DesktopNavItem
+            to="/maintenance"
+            label="Storage"
+            icon={<HardDrive className="size-4" />}
+            active={pathname.startsWith("/maintenance")}
+          />
         </nav>
 
         <Link
@@ -156,7 +163,7 @@ function DesktopNavItem({
   icon,
   active,
 }: {
-  to: "/" | "/projects" | "/logs" | "/archived";
+  to: "/" | "/projects" | "/logs" | "/archived" | "/maintenance";
   label: string;
   icon: ReactNode;
   active: boolean;

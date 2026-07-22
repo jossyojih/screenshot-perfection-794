@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ArchivedRouteImport } from './routes/archived'
 import { Route as ComposeRouteImport } from './routes/compose'
 import { Route as LogsRouteImport } from './routes/logs'
+import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 import { Route as ThreadsThreadIdRouteImport } from './routes/threads.$threadId'
@@ -37,6 +38,11 @@ const LogsRoute = LogsRouteImport.update({
   path: '/logs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MaintenanceRoute = MaintenanceRouteImport.update({
+  id: '/maintenance',
+  path: '/maintenance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectsRoute = ProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/archived': typeof ArchivedRoute
   '/compose': typeof ComposeRoute
   '/logs': typeof LogsRoute
+  '/maintenance': typeof MaintenanceRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/threads/$threadId': typeof ThreadsThreadIdRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/archived': typeof ArchivedRoute
   '/compose': typeof ComposeRoute
   '/logs': typeof LogsRoute
+  '/maintenance': typeof MaintenanceRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/threads/$threadId': typeof ThreadsThreadIdRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/archived': typeof ArchivedRoute
   '/compose': typeof ComposeRoute
   '/logs': typeof LogsRoute
+  '/maintenance': typeof MaintenanceRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/threads/$threadId': typeof ThreadsThreadIdRoute
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/archived'
     | '/compose'
     | '/logs'
+    | '/maintenance'
     | '/projects'
     | '/projects/$projectId'
     | '/threads/$threadId'
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/archived'
     | '/compose'
     | '/logs'
+    | '/maintenance'
     | '/projects'
     | '/projects/$projectId'
     | '/threads/$threadId'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/archived'
     | '/compose'
     | '/logs'
+    | '/maintenance'
     | '/projects'
     | '/projects/$projectId'
     | '/threads/$threadId'
@@ -116,6 +128,7 @@ export interface RootRouteChildren {
   ArchivedRoute: typeof ArchivedRoute
   ComposeRoute: typeof ComposeRoute
   LogsRoute: typeof LogsRoute
+  MaintenanceRoute: typeof MaintenanceRoute
   ProjectsRoute: typeof ProjectsRouteWithChildren
   ThreadsThreadIdRoute: typeof ThreadsThreadIdRoute
 }
@@ -148,6 +161,13 @@ declare module '@tanstack/react-router' {
       path: '/logs'
       fullPath: '/logs'
       preLoaderRoute: typeof LogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/maintenance': {
+      id: '/maintenance'
+      path: '/maintenance'
+      fullPath: '/maintenance'
+      preLoaderRoute: typeof MaintenanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects': {
@@ -191,6 +211,7 @@ const rootRouteChildren: RootRouteChildren = {
   ArchivedRoute: ArchivedRoute,
   ComposeRoute: ComposeRoute,
   LogsRoute: LogsRoute,
+  MaintenanceRoute: MaintenanceRoute,
   ProjectsRoute: ProjectsRouteWithChildren,
   ThreadsThreadIdRoute: ThreadsThreadIdRoute,
 }
