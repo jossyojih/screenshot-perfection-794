@@ -6,6 +6,7 @@ import {
   ChevronDown,
   GitCommitHorizontal,
   LoaderCircle,
+  MoreHorizontal,
   SendHorizontal,
   SlidersHorizontal,
   TriangleAlert,
@@ -192,6 +193,7 @@ function ThreadPage() {
   const [followUpModel, setFollowUpModel] = useState<string | undefined>(undefined);
   const [followUpReasoning, setFollowUpReasoning] = useState<ReasoningLevel | undefined>(undefined);
   const [followUpSettingsOpen, setFollowUpSettingsOpen] = useState(false);
+  const [threadDetailsOpen, setThreadDetailsOpen] = useState(false);
   const [earlierRunsOpen, setEarlierRunsOpen] = useState(false);
   const [expandedEarlierRun, setExpandedEarlierRun] = useState<string>();
   const [followUpRequestId, setFollowUpRequestId] = useState(() => crypto.randomUUID());
@@ -203,6 +205,7 @@ function ThreadPage() {
       setActivityExpanded(false);
   }, [job.data?.status]);
   useEffect(() => {
+    setThreadDetailsOpen(false);
     setEarlierRunsOpen(false);
     setExpandedEarlierRun(undefined);
   }, [threadId]);
@@ -377,7 +380,21 @@ function ThreadPage() {
           </div>
         </section>
         {finalResponse}
-        {earlierRuns.length > 0 && (
+        {(earlierRuns.length > 0 || j.status === "done" || events.length > 0 || j.usage) && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              aria-label={threadDetailsOpen ? "Hide thread details" : "Show thread details"}
+              title={threadDetailsOpen ? "Hide thread details" : "Thread details"}
+              aria-expanded={threadDetailsOpen}
+              onClick={() => setThreadDetailsOpen((open) => !open)}
+              className={`flex size-10 items-center justify-center rounded-md border ${threadDetailsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge text-muted"}`}
+            >
+              <MoreHorizontal className="size-5" aria-hidden="true" />
+            </button>
+          </div>
+        )}
+        {threadDetailsOpen && earlierRuns.length > 0 && (
           <details className="group rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60 [&::-webkit-details-marker]:hidden">
               <span className="text-[11px] font-mono uppercase tracking-widest text-muted">
@@ -559,41 +576,43 @@ function ThreadPage() {
             {streamError}
           </div>
         )}
-        {j.status === "done" && <ReviewChanges jobId={j.id} />}
-        <section className="overflow-hidden rounded-xl border border-edge bg-surface/40">
-          <h2>
-            <button
-              type="button"
-              aria-expanded={activityExpanded}
-              aria-controls={activityId}
-              onClick={() => setActivityExpanded((expanded) => !expanded)}
-              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-[11px] font-mono uppercase tracking-widest text-muted hover:bg-surface/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-glow/60 lg:px-6"
-            >
-              <span>
-                Activity · {events.length} {events.length === 1 ? "event" : "events"}
-              </span>
-              <ChevronDown
-                aria-hidden="true"
-                className={`size-4 shrink-0 transition-transform ${activityExpanded ? "rotate-180" : ""}`}
-              />
-            </button>
-          </h2>
-          <div id={activityId} hidden={!activityExpanded} className="px-4 pb-4 lg:px-6 lg:pb-6">
-            {events.length === 0 ? (
-              <DataState
-                title={
-                  active ? "Waiting for runner events…" : "No events were recorded for this job."
-                }
-              />
-            ) : (
-              <ol className="ml-1 space-y-5 border-l border-edge pl-5">
-                {events.map((event, i) => (
-                  <EventRow key={event.id ?? i} event={event} />
-                ))}
-              </ol>
-            )}
-          </div>
-        </section>
+        {threadDetailsOpen && j.status === "done" && <ReviewChanges jobId={j.id} />}
+        {(threadDetailsOpen || active) && (
+          <section className="overflow-hidden rounded-xl border border-edge bg-surface/40">
+            <h2>
+              <button
+                type="button"
+                aria-expanded={activityExpanded}
+                aria-controls={activityId}
+                onClick={() => setActivityExpanded((expanded) => !expanded)}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-[11px] font-mono uppercase tracking-widest text-muted hover:bg-surface/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-glow/60 lg:px-6"
+              >
+                <span>
+                  Activity · {events.length} {events.length === 1 ? "event" : "events"}
+                </span>
+                <ChevronDown
+                  aria-hidden="true"
+                  className={`size-4 shrink-0 transition-transform ${activityExpanded ? "rotate-180" : ""}`}
+                />
+              </button>
+            </h2>
+            <div id={activityId} hidden={!activityExpanded} className="px-4 pb-4 lg:px-6 lg:pb-6">
+              {events.length === 0 ? (
+                <DataState
+                  title={
+                    active ? "Waiting for runner events…" : "No events were recorded for this job."
+                  }
+                />
+              ) : (
+                <ol className="ml-1 space-y-5 border-l border-edge pl-5">
+                  {events.map((event, i) => (
+                    <EventRow key={event.id ?? i} event={event} />
+                  ))}
+                </ol>
+              )}
+            </div>
+          </section>
+        )}
         {j.error && (
           <section className="rounded-lg border-2 border-danger/60 bg-danger-soft p-4">
             <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-danger">
@@ -606,7 +625,7 @@ function ThreadPage() {
             </p>
           </section>
         )}
-        {j.usage && (
+        {threadDetailsOpen && j.usage && (
           <details className="group rounded-xl border border-edge bg-surface/60 p-4">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60 [&::-webkit-details-marker]:hidden">
               <span className="text-[11px] font-mono uppercase tracking-widest text-muted">
