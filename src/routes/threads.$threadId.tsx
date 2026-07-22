@@ -416,9 +416,14 @@ function ThreadPage() {
                 title={threadDetailsOpen ? "Hide thread details" : "Thread details"}
                 aria-expanded={threadDetailsOpen}
                 onClick={() => setThreadDetailsOpen((open) => !open)}
-                className={`flex size-9 shrink-0 items-center justify-center rounded-md border transition-colors ${threadDetailsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge text-muted"}`}
+                className={`flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-md border px-2.5 text-[10px] font-mono uppercase tracking-wide transition-colors ${threadDetailsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge bg-void/40 text-muted hover:text-foreground"}`}
               >
-                <MoreHorizontal className="size-5" aria-hidden="true" />
+                <MoreHorizontal className="size-4" aria-hidden="true" />
+                <span>Details</span>
+                <ChevronDown
+                  className={`size-3 transition-transform ${threadDetailsOpen ? "rotate-180" : ""}`}
+                  aria-hidden="true"
+                />
               </button>
             )}
           </div>
