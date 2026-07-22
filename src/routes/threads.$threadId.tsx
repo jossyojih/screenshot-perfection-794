@@ -698,13 +698,21 @@ function ThreadPage() {
         {canContinue && (
           <section
             id="continue-conversation"
-            className="fixed inset-x-0 bottom-0 z-40 min-w-0 overflow-hidden border-t border-glow/40 bg-void/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur min-[380px]:p-4 min-[380px]:pb-[max(1rem,env(safe-area-inset-bottom))] lg:left-64 lg:p-5"
+            className="fixed inset-x-0 bottom-0 z-40 min-w-0 border-t border-glow/40 bg-void/95 p-2 backdrop-blur lg:left-64 lg:px-5 lg:py-3"
           >
             <div
               id="follow-up-settings"
               className={`${followUpSettingsOpen ? "block" : "hidden"} absolute inset-x-0 bottom-full max-h-[65vh] min-w-0 overflow-y-auto border-y border-edge bg-void p-4 shadow-2xl lg:px-8`}
             >
               <div className="mx-auto max-w-[1100px]">
+                <div className="mb-4">
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-glow">
+                    Continue conversation
+                  </div>
+                  <p className="mt-1 text-xs text-muted">
+                    Choose the repository scope and model for this follow-up.
+                  </p>
+                </div>
                 <div className="mb-3 min-w-0">
                   <div className="text-[10px] font-mono uppercase tracking-wider text-muted">
                     Agent
@@ -833,7 +841,7 @@ function ThreadPage() {
                 placeholder="Ask a follow-up…"
                 className="w-full min-w-0 max-w-full resize-none rounded-md border border-edge bg-surface px-3 py-2 text-base focus:border-glow/60 focus:outline-none sm:text-sm"
               />
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex w-full items-center justify-between gap-2">
                 <button
                   type="button"
                   aria-label="Conversation options"
@@ -870,7 +878,7 @@ function ThreadPage() {
             </form>
           </section>
         )}
-        {canContinue && <div aria-hidden="true" className="h-52 lg:h-40" />}
+        {canContinue && <div aria-hidden="true" className="h-32" />}
       </Page>
     </AppShell>
   );
