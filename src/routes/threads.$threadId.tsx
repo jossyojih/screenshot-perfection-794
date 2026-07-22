@@ -342,6 +342,7 @@ function ThreadPage() {
   return (
     <AppShell
       title={project.data?.name ?? "Job"}
+      bottomBar={canContinue ? false : undefined}
       headerRight={
         <button
           type="button"
@@ -634,7 +635,7 @@ function ThreadPage() {
         {canContinue && (
           <section
             id="continue-conversation"
-            className="sticky bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] min-w-0 overflow-hidden rounded-xl border border-glow/40 bg-void/95 p-3 shadow-xl backdrop-blur min-[380px]:p-4 lg:bottom-3 lg:p-5"
+            className="fixed inset-x-0 bottom-0 z-40 min-w-0 overflow-hidden border-t border-glow/40 bg-void/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur min-[380px]:p-4 min-[380px]:pb-[max(1rem,env(safe-area-inset-bottom))] lg:left-64 lg:p-5"
           >
             <button
               type="button"
@@ -813,6 +814,7 @@ function ThreadPage() {
             </form>
           </section>
         )}
+        {canContinue && <div aria-hidden="true" className="h-52 lg:h-40" />}
       </Page>
     </AppShell>
   );
