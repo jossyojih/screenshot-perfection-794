@@ -353,7 +353,7 @@ function ThreadPage() {
     void navigate({ to: "/" });
   };
   const finalResponse = (j.finalResponse || j.status === "done") && (
-    <section className="rounded-lg border border-edge bg-surface p-4">
+    <section className="mr-auto w-[96%] rounded-lg border border-edge bg-surface p-4 sm:w-[92%]">
       <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-glow">
         Final response
       </h2>
@@ -377,7 +377,7 @@ function ThreadPage() {
       }
     >
       <Page>
-        <section className="rounded-lg border border-edge bg-surface/50 p-3 lg:p-4">
+        <section className="ml-auto w-[96%] rounded-lg border border-edge bg-surface/50 p-3 sm:w-[92%] lg:p-4">
           <div className="flex flex-wrap items-center gap-2">
             <StatusDot status={j.status} />
             <StatusPill status={j.status} />
@@ -482,9 +482,13 @@ function ThreadPage() {
                     </button>
                     {expandedEarlierRun === run.id && (
                       <div id={`earlier-run-${run.id}`} className="mt-3 border-t border-edge pt-3">
-                        <RequestPanel prompt={run.prompt} compact />
+                        <RequestPanel
+                          prompt={run.prompt}
+                          compact
+                          className="ml-auto w-[96%] sm:w-[92%]"
+                        />
                         {run.finalResponse && (
-                          <div className="mt-3 rounded-md border border-edge bg-surface/60 p-3">
+                          <div className="mr-auto mt-3 w-[96%] rounded-md border border-edge bg-surface/60 p-3 sm:w-[92%]">
                             <div className="text-[9px] font-mono uppercase tracking-widest text-muted">
                               Final response
                             </div>
