@@ -375,21 +375,38 @@ function ThreadPage() {
             </span>
           </div>
         </section>
-        <section className="grid gap-3 rounded-xl border border-edge bg-surface/50 p-4 md:grid-cols-2 lg:p-6">
-          <ScopeList
-            title="Requested scope"
-            ids={j.requestedRepositoryIds ?? j.selectedRepositoryIds}
-            names={repoNames}
-            empty="No repositories requested; the planner chooses the minimum scope."
-          />
-          <ScopeList
-            title="Resolved scope"
-            ids={j.resolvedRepositoryIds ?? j.selectedRepositoryIds}
-            names={repoNames}
-            reasons={j.scopeReasons}
-            empty="Scope planning is pending."
-          />
-        </section>
+        <details className="group rounded-xl border border-edge bg-surface/50 p-4 lg:p-6">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60 [&::-webkit-details-marker]:hidden">
+            <span className="text-[11px] font-mono uppercase tracking-widest text-muted">
+              Repository scope
+            </span>
+            <span className="flex shrink-0 items-center gap-2">
+              <span className="rounded-full border border-edge bg-void/50 px-2 py-1 text-[9px] font-mono text-muted">
+                {(j.resolvedRepositoryIds ?? j.selectedRepositoryIds).length} repositor
+                {(j.resolvedRepositoryIds ?? j.selectedRepositoryIds).length === 1 ? "y" : "ies"}
+              </span>
+              <ChevronDown
+                aria-hidden="true"
+                className="h-4 w-4 text-muted transition-transform group-open:rotate-180"
+              />
+            </span>
+          </summary>
+          <div className="mt-4 grid gap-3 border-t border-edge pt-4 md:grid-cols-2">
+            <ScopeList
+              title="Requested scope"
+              ids={j.requestedRepositoryIds ?? j.selectedRepositoryIds}
+              names={repoNames}
+              empty="No repositories requested; the planner chooses the minimum scope."
+            />
+            <ScopeList
+              title="Resolved scope"
+              ids={j.resolvedRepositoryIds ?? j.selectedRepositoryIds}
+              names={repoNames}
+              reasons={j.scopeReasons}
+              empty="Scope planning is pending."
+            />
+          </div>
+        </details>
         {earlierRuns.length > 0 && (
           <details className="group rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60 [&::-webkit-details-marker]:hidden">
@@ -622,11 +639,23 @@ function ThreadPage() {
           </section>
         )}
         {j.repositoryResults && j.repositoryResults.length > 0 && (
-          <section>
-            <h2 className="mb-3 text-[11px] font-mono uppercase tracking-widest text-muted">
-              Repository_Results
-            </h2>
-            <div className="grid gap-3 md:grid-cols-2">
+          <details className="group rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60 [&::-webkit-details-marker]:hidden">
+              <span className="text-[11px] font-mono uppercase tracking-widest text-muted">
+                Repository results
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="rounded-full border border-edge bg-void/50 px-2 py-1 text-[9px] font-mono text-muted">
+                  {j.repositoryResults.length} result
+                  {j.repositoryResults.length === 1 ? "" : "s"}
+                </span>
+                <ChevronDown
+                  aria-hidden="true"
+                  className="h-4 w-4 text-muted transition-transform group-open:rotate-180"
+                />
+              </span>
+            </summary>
+            <div className="mt-4 grid gap-3 border-t border-edge pt-4 md:grid-cols-2">
               {j.repositoryResults.map((result, i) => (
                 <div
                   key={result.repositoryId ?? i}
@@ -655,14 +684,25 @@ function ThreadPage() {
                 </div>
               ))}
             </div>
-          </section>
+          </details>
         )}
         {j.usage && (
-          <section className="rounded-xl border border-edge bg-surface/60 p-4">
-            <h2 className="mb-3 text-[11px] font-mono uppercase tracking-widest text-muted">
-              Usage
-            </h2>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <details className="group rounded-xl border border-edge bg-surface/60 p-4">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60 [&::-webkit-details-marker]:hidden">
+              <span className="text-[11px] font-mono uppercase tracking-widest text-muted">
+                Usage
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="rounded-full border border-edge bg-void/50 px-2 py-1 text-[9px] font-mono text-muted">
+                  {Object.keys(j.usage).length} metrics
+                </span>
+                <ChevronDown
+                  aria-hidden="true"
+                  className="h-4 w-4 text-muted transition-transform group-open:rotate-180"
+                />
+              </span>
+            </summary>
+            <div className="mt-4 grid grid-cols-2 gap-2 border-t border-edge pt-4 sm:grid-cols-4">
               {Object.entries(j.usage).map(([key, value]) => (
                 <div key={key} className="rounded-lg border border-edge bg-void/60 p-3">
                   <div className="text-[9px] font-mono uppercase text-muted">
@@ -672,7 +712,7 @@ function ThreadPage() {
                 </div>
               ))}
             </div>
-          </section>
+          </details>
         )}
         {canContinue && (
           <section
