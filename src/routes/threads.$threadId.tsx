@@ -208,7 +208,18 @@ function ThreadPage() {
   const [followUpRequestId, setFollowUpRequestId] = useState(() => crypto.randomUUID());
   const followUpSubmitting = useRef(false);
   const followUpInputRef = useRef<HTMLTextAreaElement>(null);
+  const composerRef = useRef<HTMLElement>(null);
+  const [composerHeight, setComposerHeight] = useState(72);
   useEffect(() => resizeFollowUpInput(followUpInputRef.current), [followUp]);
+  useEffect(() => {
+    const composer = composerRef.current;
+    if (!composer) return;
+    const updateHeight = () => setComposerHeight(composer.getBoundingClientRect().height);
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(composer);
+    return () => observer.disconnect();
+  }, [threadId, job.data?.status]);
   useEffect(() => {
     const status = job.data?.status;
     if (status === "queued" || status === "running") setActivityExpanded(true);
@@ -378,7 +389,7 @@ function ThreadPage() {
         </button>
       }
     >
-      <Page>
+      <Page bottomClearance={canContinue ? composerHeight : 0}>
         <section className="ml-auto w-[96%] rounded-lg border border-edge bg-surface/50 p-3 sm:w-[92%] lg:p-4">
           <div className="flex flex-wrap items-center gap-2">
             <StatusDot status={j.status} />
@@ -721,6 +732,7 @@ function ThreadPage() {
         )}
         {canContinue && (
           <section
+            ref={composerRef}
             id="continue-conversation"
             className="fixed inset-x-0 bottom-0 z-40 min-w-0 border-t border-glow/40 bg-void lg:left-64"
           >
@@ -1467,8 +1479,17 @@ function EventRow({ event }: { event: JobEvent }) {
     </li>
   );
 }
-const Page = ({ children }: { children: React.ReactNode }) => (
-  <div className="mx-auto min-w-0 max-w-[1100px] space-y-6 overflow-x-clip py-5 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:px-8 lg:py-8">
+const Page = ({
+  children,
+  bottomClearance = 0,
+}: {
+  children: React.ReactNode;
+  bottomClearance?: number;
+}) => (
+  <div
+    className="mx-auto min-w-0 max-w-[1100px] space-y-6 overflow-x-clip py-5 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:px-8 lg:py-8"
+    style={bottomClearance ? { paddingBottom: bottomClearance } : undefined}
+  >
     {children}
   </div>
 );
