@@ -6,6 +6,8 @@ import {
   ChevronDown,
   GitCommitHorizontal,
   LoaderCircle,
+  SendHorizontal,
+  SlidersHorizontal,
   TriangleAlert,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
@@ -637,72 +639,55 @@ function ThreadPage() {
             id="continue-conversation"
             className="fixed inset-x-0 bottom-0 z-40 min-w-0 overflow-hidden border-t border-glow/40 bg-void/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur min-[380px]:p-4 min-[380px]:pb-[max(1rem,env(safe-area-inset-bottom))] lg:left-64 lg:p-5"
           >
-            <button
-              type="button"
-              aria-expanded={followUpSettingsOpen}
-              aria-controls="follow-up-settings"
-              onClick={() => setFollowUpSettingsOpen((open) => !open)}
-              className="mb-3 flex w-full min-w-0 items-center justify-between gap-3 rounded-md border border-edge bg-surface px-3 py-2 text-left"
-            >
-              <span className="min-w-0">
-                <span className="block text-[10px] font-mono uppercase tracking-wider text-muted">
-                  Continue conversation
-                </span>
-                <span
-                  className="block truncate text-xs"
-                  title={`${j.agent} · ${followUpModel ?? j.model} · ${selectedScopeSummary}`}
-                >
-                  {j.agent} · {followUpModel ?? j.model} · {selectedScopeSummary}
-                </span>
-              </span>
-              <ChevronDown
-                aria-hidden="true"
-                className={`size-4 shrink-0 transition-transform ${followUpSettingsOpen ? "rotate-180" : ""}`}
-              />
-            </button>
             <div
               id="follow-up-settings"
-              className={`${followUpSettingsOpen ? "block" : "hidden"} mb-3 min-w-0 rounded-lg border border-edge bg-surface/50 p-3`}
+              className={`${followUpSettingsOpen ? "block" : "hidden"} absolute inset-x-0 bottom-full max-h-[65vh] min-w-0 overflow-y-auto border-y border-edge bg-void p-4 shadow-2xl lg:px-8`}
             >
-              <div className="mb-3 min-w-0">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-muted">
-                  Agent
+              <div className="mx-auto max-w-[1100px]">
+                <div className="mb-3 min-w-0">
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-muted">
+                    Agent
+                  </div>
+                  <div className="mt-1 truncate text-xs" title={j.agent}>
+                    {j.agent}
+                  </div>
+                  <div className="mt-3 text-[10px] font-mono uppercase tracking-wider text-muted">
+                    Repository scope
+                  </div>
+                  <div className="mt-1 break-words text-xs text-foreground">
+                    {selectedScopeSummary}
+                  </div>
                 </div>
-                <div className="mt-1 truncate text-xs" title={j.agent}>
-                  {j.agent}
+                <div
+                  className="grid gap-2 sm:grid-cols-3"
+                  role="group"
+                  aria-label="Repository scope"
+                >
+                  {(["keep", "auto", "manual"] as const).map((mode) => (
+                    <button
+                      type="button"
+                      key={mode}
+                      aria-pressed={followUpScope === mode}
+                      onClick={() => {
+                        setFollowUpScope(mode);
+                        if (mode === "manual" && followUpRepositories.length === 0)
+                          setFollowUpRepositories(j.resolvedRepositoryIds ?? []);
+                      }}
+                      className={`rounded-md border px-3 py-2 text-left text-xs ${followUpScope === mode ? "border-glow bg-glow-soft" : "border-edge bg-surface"}`}
+                    >
+                      {mode === "keep"
+                        ? "Keep current"
+                        : mode === "auto"
+                          ? "Auto-select again"
+                          : "Manual scope"}
+                    </button>
+                  ))}
                 </div>
-                <div className="mt-3 text-[10px] font-mono uppercase tracking-wider text-muted">
-                  Repository scope
-                </div>
-                <div className="mt-1 break-words text-xs text-foreground">
-                  {selectedScopeSummary}
-                </div>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-3" role="group" aria-label="Repository scope">
-                {(["keep", "auto", "manual"] as const).map((mode) => (
-                  <button
-                    type="button"
-                    key={mode}
-                    aria-pressed={followUpScope === mode}
-                    onClick={() => {
-                      setFollowUpScope(mode);
-                      if (mode === "manual" && followUpRepositories.length === 0)
-                        setFollowUpRepositories(j.resolvedRepositoryIds ?? []);
-                    }}
-                    className={`rounded-md border px-3 py-2 text-left text-xs ${followUpScope === mode ? "border-glow bg-glow-soft" : "border-edge bg-surface"}`}
-                  >
-                    {mode === "keep"
-                      ? "Keep current"
-                      : mode === "auto"
-                        ? "Auto-select again"
-                        : "Manual scope"}
-                  </button>
-                ))}
-              </div>
-              {followUpScope === "manual" && (
-                <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2">
-                  {projectRepositories(project.data ?? { id: "", name: "", repositories: [] }).map(
-                    (repository) => (
+                {followUpScope === "manual" && (
+                  <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2">
+                    {projectRepositories(
+                      project.data ?? { id: "", name: "", repositories: [] },
+                    ).map((repository) => (
                       <label
                         key={repository.id}
                         className="flex items-center gap-2 rounded-md border border-edge bg-surface px-3 py-2 text-xs"
@@ -720,57 +705,57 @@ function ThreadPage() {
                         />
                         <span className="min-w-0 break-words">{repository.name}</span>
                       </label>
-                    ),
-                  )}
-                </div>
-              )}
-              {agentCapability && agentCapability.models.length > 1 && (
-                <div className="mt-3">
-                  <label className="mb-2 block text-[10px] font-mono uppercase tracking-wider text-muted">
-                    {j.agent === "claude" ? "Claude Model" : "Model"} (optional)
-                  </label>
-                  <select
-                    value={followUpModel ?? ""}
-                    onChange={(e) => setFollowUpModel(e.target.value || undefined)}
-                    className="w-full rounded-md border border-edge bg-surface px-3 py-2 text-xs font-mono"
-                  >
-                    <option value="">Keep current ({j.model})</option>
-                    {agentCapability.models.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
                     ))}
-                  </select>
-                </div>
-              )}
-              {agentCapability &&
-                agentCapability.reasoningLevels.length > 0 &&
-                j.agent === "codex" && (
+                  </div>
+                )}
+                {agentCapability && agentCapability.models.length > 1 && (
                   <div className="mt-3">
                     <label className="mb-2 block text-[10px] font-mono uppercase tracking-wider text-muted">
-                      Reasoning Level (optional)
+                      {j.agent === "claude" ? "Claude Model" : "Model"} (optional)
                     </label>
                     <select
-                      value={followUpReasoning ?? ""}
-                      onChange={(e) =>
-                        setFollowUpReasoning(
-                          (e.target.value || undefined) as ReasoningLevel | undefined,
-                        )
-                      }
+                      value={followUpModel ?? ""}
+                      onChange={(e) => setFollowUpModel(e.target.value || undefined)}
                       className="w-full rounded-md border border-edge bg-surface px-3 py-2 text-xs font-mono"
                     >
-                      <option value="">Keep current ({j.reasoningLevel})</option>
-                      {agentCapability.reasoningLevels.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
+                      <option value="">Keep current ({j.model})</option>
+                      {agentCapability.models.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
                         </option>
                       ))}
                     </select>
                   </div>
                 )}
+                {agentCapability &&
+                  agentCapability.reasoningLevels.length > 0 &&
+                  j.agent === "codex" && (
+                    <div className="mt-3">
+                      <label className="mb-2 block text-[10px] font-mono uppercase tracking-wider text-muted">
+                        Reasoning Level (optional)
+                      </label>
+                      <select
+                        value={followUpReasoning ?? ""}
+                        onChange={(e) =>
+                          setFollowUpReasoning(
+                            (e.target.value || undefined) as ReasoningLevel | undefined,
+                          )
+                        }
+                        className="w-full rounded-md border border-edge bg-surface px-3 py-2 text-xs font-mono"
+                      >
+                        <option value="">Keep current ({j.reasoningLevel})</option>
+                        {agentCapability.reasoningLevels.map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+              </div>
             </div>
             <form
-              className="flex min-w-0 flex-col gap-2 sm:flex-row"
+              className="mx-auto flex max-w-[1100px] min-w-0 flex-col gap-2"
               onSubmit={(event) => {
                 event.preventDefault();
                 submitFollowUp();
@@ -783,31 +768,41 @@ function ThreadPage() {
                 id="follow-up-prompt"
                 value={followUp}
                 onChange={(event) => setFollowUp(event.target.value)}
-                rows={3}
+                rows={2}
                 placeholder="Ask a follow-up…"
-                className="w-full min-w-0 max-w-full flex-1 resize-y rounded-md border border-edge bg-surface px-3 py-2 text-base focus:border-glow/60 focus:outline-none sm:text-sm"
+                className="w-full min-w-0 max-w-full resize-none rounded-md border border-edge bg-surface px-3 py-2 text-base focus:border-glow/60 focus:outline-none sm:text-sm"
               />
-              <button
-                type="submit"
-                disabled={
-                  !followUp.trim() ||
-                  sendFollowUp.isPending ||
-                  (followUpScope === "manual" && followUpRepositories.length === 0)
-                }
-                aria-busy={sendFollowUp.isPending || followUpSubmitting.current}
-                className="min-h-11 w-full rounded-md bg-foreground px-5 text-[10px] font-mono uppercase text-void disabled:cursor-not-allowed disabled:bg-edge sm:min-h-10 sm:w-auto sm:self-end"
-              >
-                {sendFollowUp.isPending ? (
-                  <span className="inline-flex items-center gap-2">
-                    <LoaderCircle className="size-3 animate-spin" /> Sending…
-                  </span>
-                ) : (
-                  <>
-                    <span className="sm:hidden">Instruct agent</span>
-                    <span className="hidden sm:inline">Continue</span>
-                  </>
-                )}
-              </button>
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  aria-label="Conversation options"
+                  title={`${j.agent} · ${followUpModel ?? j.model} · ${selectedScopeSummary}`}
+                  aria-expanded={followUpSettingsOpen}
+                  aria-controls="follow-up-settings"
+                  onClick={() => setFollowUpSettingsOpen((open) => !open)}
+                  className={`flex size-10 items-center justify-center rounded-md border ${followUpSettingsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge text-muted"}`}
+                >
+                  <SlidersHorizontal className="size-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="submit"
+                  title="Send follow-up"
+                  aria-label="Send follow-up"
+                  disabled={
+                    !followUp.trim() ||
+                    sendFollowUp.isPending ||
+                    (followUpScope === "manual" && followUpRepositories.length === 0)
+                  }
+                  aria-busy={sendFollowUp.isPending || followUpSubmitting.current}
+                  className="flex size-10 items-center justify-center rounded-md bg-foreground text-void disabled:cursor-not-allowed disabled:bg-edge"
+                >
+                  {sendFollowUp.isPending ? (
+                    <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <SendHorizontal className="size-4" aria-hidden="true" />
+                  )}
+                </button>
+              </div>
               <span className="sr-only" role="status" aria-live="polite">
                 {sendFollowUp.isPending ? "Sending follow-up instruction" : ""}
               </span>
