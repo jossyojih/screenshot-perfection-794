@@ -4,7 +4,14 @@ import { getJobs } from "@/lib/api";
 import { groupJobsByThread } from "@/lib/threads";
 
 export function NotificationBell() {
-  const { data = [] } = useQuery({ queryKey: ["jobs"], queryFn: getJobs, refetchInterval: 5000 });
+  const { data = [] } = useQuery({
+    queryKey: ["jobs"],
+    queryFn: getJobs,
+    refetchInterval: 2000,
+    refetchOnMount: "always",
+    refetchOnReconnect: "always",
+    refetchOnWindowFocus: "always",
+  });
   const threads = groupJobsByThread(data);
   const needsInput = threads.filter((thread) => thread.latestRun.status === "needs_input").length;
   const failed = threads.filter((thread) => thread.latestRun.status === "failed").length;
