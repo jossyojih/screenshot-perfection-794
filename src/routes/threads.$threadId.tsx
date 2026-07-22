@@ -288,6 +288,7 @@ function ThreadPage() {
     );
   const j = mergeJobEvents(job.data, events);
   const earlierRuns = (conversation.data ?? []).filter((run) => run.id !== j.id);
+  const conversationTitle = jobTitle(conversation.data?.[0] ?? j);
   const canContinue =
     ["done", "failed", "cancelled"].includes(j.status) &&
     (!conversation.data || conversation.data.at(-1)?.id === j.id);
@@ -346,7 +347,7 @@ function ThreadPage() {
   );
   return (
     <AppShell
-      title={project.data?.name ?? "Job"}
+      title={conversationTitle}
       bottomBar={canContinue ? false : undefined}
       headerRight={
         <button
