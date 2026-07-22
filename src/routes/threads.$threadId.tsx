@@ -699,7 +699,7 @@ function ThreadPage() {
         {canContinue && (
           <section
             id="continue-conversation"
-            className="fixed inset-x-0 bottom-0 z-40 min-w-0 border-t border-glow/40 bg-void/95 p-2 backdrop-blur lg:left-64 lg:px-5 lg:py-3"
+            className="fixed inset-x-0 bottom-0 z-40 min-w-0 border-t border-glow/40 bg-void/95 backdrop-blur lg:left-64"
           >
             <div
               id="follow-up-settings"
@@ -825,7 +825,7 @@ function ThreadPage() {
               </div>
             </div>
             <form
-              className="mx-auto flex max-w-[1100px] min-w-0 flex-col gap-2"
+              className="mx-auto max-w-[1100px] min-w-0"
               onSubmit={(event) => {
                 event.preventDefault();
                 submitFollowUp();
@@ -834,44 +834,46 @@ function ThreadPage() {
               <label htmlFor="follow-up-prompt" className="sr-only">
                 Follow-up instruction
               </label>
-              <textarea
-                id="follow-up-prompt"
-                value={followUp}
-                onChange={(event) => setFollowUp(event.target.value)}
-                rows={2}
-                placeholder="Ask a follow-up…"
-                className="w-full min-w-0 max-w-full resize-none rounded-md border border-edge bg-surface px-3 py-2 text-base focus:border-glow/60 focus:outline-none sm:text-sm"
-              />
-              <div className="flex w-full items-center justify-between gap-2">
-                <button
-                  type="button"
-                  aria-label="Conversation options"
-                  title={`${j.agent} · ${followUpModel ?? j.model} · ${selectedScopeSummary}`}
-                  aria-expanded={followUpSettingsOpen}
-                  aria-controls="follow-up-settings"
-                  onClick={() => setFollowUpSettingsOpen((open) => !open)}
-                  className={`flex size-10 items-center justify-center rounded-md border ${followUpSettingsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge text-muted"}`}
-                >
-                  <SlidersHorizontal className="size-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="submit"
-                  title="Send follow-up"
-                  aria-label="Send follow-up"
-                  disabled={
-                    !followUp.trim() ||
-                    sendFollowUp.isPending ||
-                    (followUpScope === "manual" && followUpRepositories.length === 0)
-                  }
-                  aria-busy={sendFollowUp.isPending || followUpSubmitting.current}
-                  className="flex size-10 items-center justify-center rounded-md bg-foreground text-void disabled:cursor-not-allowed disabled:bg-edge"
-                >
-                  {sendFollowUp.isPending ? (
-                    <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <SendHorizontal className="size-4" aria-hidden="true" />
-                  )}
-                </button>
+              <div className="relative">
+                <textarea
+                  id="follow-up-prompt"
+                  value={followUp}
+                  onChange={(event) => setFollowUp(event.target.value)}
+                  rows={3}
+                  placeholder="Ask a follow-up…"
+                  className="block w-full min-w-0 max-w-full resize-none rounded-none border-0 bg-surface px-3 pb-12 pt-3 text-base focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
+                />
+                <div className="absolute inset-x-2 bottom-1 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    aria-label="Conversation options"
+                    title={`${j.agent} · ${followUpModel ?? j.model} · ${selectedScopeSummary}`}
+                    aria-expanded={followUpSettingsOpen}
+                    aria-controls="follow-up-settings"
+                    onClick={() => setFollowUpSettingsOpen((open) => !open)}
+                    className={`flex size-10 items-center justify-center rounded-md border ${followUpSettingsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge text-muted"}`}
+                  >
+                    <SlidersHorizontal className="size-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="submit"
+                    title="Send follow-up"
+                    aria-label="Send follow-up"
+                    disabled={
+                      !followUp.trim() ||
+                      sendFollowUp.isPending ||
+                      (followUpScope === "manual" && followUpRepositories.length === 0)
+                    }
+                    aria-busy={sendFollowUp.isPending || followUpSubmitting.current}
+                    className="flex size-10 items-center justify-center rounded-md bg-foreground text-void disabled:cursor-not-allowed disabled:bg-edge"
+                  >
+                    {sendFollowUp.isPending ? (
+                      <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <SendHorizontal className="size-4" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
               </div>
               <span className="sr-only" role="status" aria-live="polite">
                 {sendFollowUp.isPending ? "Sending follow-up instruction" : ""}
@@ -879,7 +881,7 @@ function ThreadPage() {
             </form>
           </section>
         )}
-        {canContinue && <div aria-hidden="true" className="h-32" />}
+        {canContinue && <div aria-hidden="true" className="h-28" />}
       </Page>
     </AppShell>
   );
