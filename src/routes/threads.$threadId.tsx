@@ -395,8 +395,17 @@ function ThreadPage() {
           </div>
         )}
         {threadDetailsOpen && earlierRuns.length > 0 && (
-          <details className="group rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60 [&::-webkit-details-marker]:hidden">
+          <section className="rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
+            <button
+              type="button"
+              aria-expanded={earlierRunsOpen}
+              aria-controls="earlier-conversation-runs"
+              onClick={() => {
+                setEarlierRunsOpen((open) => !open);
+                if (earlierRunsOpen) setExpandedEarlierRun(undefined);
+              }}
+              className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60"
+            >
               <span className="text-[11px] font-mono uppercase tracking-widest text-muted">
                 Earlier conversation runs
               </span>
@@ -406,40 +415,73 @@ function ThreadPage() {
                 </span>
                 <ChevronDown
                   aria-hidden="true"
-                  className="h-4 w-4 text-muted transition-transform group-open:rotate-180"
+                  className={`h-4 w-4 text-muted transition-transform ${earlierRunsOpen ? "rotate-180" : ""}`}
                 />
               </span>
-            </summary>
-            <div className="mt-4 space-y-3 border-t border-edge pt-4">
-              {earlierRuns.map((run) => (
-                <article key={run.id} className="rounded-lg border border-edge bg-void/50 p-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <StatusPill status={run.status} />
-                    <span className="text-[10px] font-mono text-muted">
-                      {run.agent} · {run.model}
-                      {run.reasoningLevel && ` · ${run.reasoningLevel}`}
-                    </span>
-                    {run.selectedRepositoryIds.map((id) => (
-                      <span key={id} className="text-[9px] font-mono text-muted">
-                        {repoNames.get(id) ?? id}
+            </button>
+            {earlierRunsOpen && (
+              <div
+                id="earlier-conversation-runs"
+                className="mt-4 space-y-3 border-t border-edge pt-4"
+              >
+                {earlierRuns.map((run) => (
+                  <article key={run.id} className="rounded-lg border border-edge bg-void/50 p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusPill status={run.status} />
+                      <span className="text-[10px] font-mono text-muted">
+                        {run.agent} · {run.model}
+                        {run.reasoningLevel && ` · ${run.reasoningLevel}`}
                       </span>
-                    ))}
-                  </div>
-                  <Link
-                    to="/threads/$threadId"
-                    params={{ threadId: run.id }}
-                    className="mt-2 block text-sm font-medium hover:text-glow"
-                  >
-                    {jobTitle(run)}
-                  </Link>
-                  <RequestPanel prompt={run.prompt} compact className="mt-3" />
-                  {run.finalResponse && (
-                    <p className="mt-2 line-clamp-2 text-xs text-muted">{run.finalResponse}</p>
-                  )}
-                </article>
-              ))}
-            </div>
-          </details>
+                      {run.selectedRepositoryIds.map((id) => (
+                        <span key={id} className="text-[9px] font-mono text-muted">
+                          {repoNames.get(id) ?? id}
+                        </span>
+                      ))}
+                    </div>
+                    <Link
+                      to="/threads/$threadId"
+                      params={{ threadId: run.id }}
+                      className="mt-2 block break-words text-sm font-medium hover:text-glow"
+                    >
+                      {jobTitle(run)}
+                    </Link>
+                    <button
+                      type="button"
+                      aria-expanded={expandedEarlierRun === run.id}
+                      aria-controls={`earlier-run-${run.id}`}
+                      onClick={() =>
+                        setExpandedEarlierRun((current) =>
+                          current === run.id ? undefined : run.id,
+                        )
+                      }
+                      className="mt-3 flex w-full items-center justify-between gap-2 rounded-md border border-edge px-3 py-2 text-[10px] font-mono uppercase text-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60 sm:w-auto"
+                    >
+                      {expandedEarlierRun === run.id ? "Hide details" : "Show details"}
+                      <ChevronDown
+                        aria-hidden="true"
+                        className={`h-3.5 w-3.5 transition-transform ${expandedEarlierRun === run.id ? "rotate-180" : ""}`}
+                      />
+                    </button>
+                    {expandedEarlierRun === run.id && (
+                      <div id={`earlier-run-${run.id}`} className="mt-3 border-t border-edge pt-3">
+                        <RequestPanel prompt={run.prompt} compact />
+                        {run.finalResponse && (
+                          <div className="mt-3 rounded-md border border-edge bg-surface/60 p-3">
+                            <div className="text-[9px] font-mono uppercase tracking-widest text-muted">
+                              Final response
+                            </div>
+                            <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-relaxed text-muted">
+                              {run.finalResponse}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
         )}
         {(j.status === "queued" || j.status === "running") && (
           <section className="rounded-lg border border-glow/30 bg-glow-soft p-4">

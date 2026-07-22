@@ -36,7 +36,7 @@
 :root {
   --void: oklch(0.08 0.005 260);
   --surface: oklch(0.16 0.006 260);
-  --surface-2: oklch(0.20 0.006 260);
+  --surface-2: oklch(0.2 0.006 260);
   --edge: oklch(0.28 0.008 260);
   --glow: oklch(0.75 0.18 145);
   --glow-soft: oklch(0.75 0.18 145 / 0.15);
@@ -58,7 +58,7 @@
   --alert: oklch(0.62 0.16 80);
   --alert-soft: oklch(0.62 0.16 80 / 0.14);
   --danger: oklch(0.52 0.22 25);
-  --danger-soft: oklch(0.52 0.22 25 / 0.10);
+  --danger-soft: oklch(0.52 0.22 25 / 0.1);
   --muted: oklch(0.45 0.008 260);
   --foreground: oklch(0.18 0.005 260);
 }

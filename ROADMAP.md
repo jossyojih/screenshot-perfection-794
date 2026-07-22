@@ -22,7 +22,7 @@
 - [x] Test `review_required`, `auto_push`, and `read_only` safely.
 - [x] Verify an auto-pushed backend change triggers automatic deployment.
 
-### 4. Add model selection
+### 4. Add model selection - Completed
 
 - Support Codex model and reasoning-level selection.
 - Support Claude Sonnet and Opus selection.
@@ -65,6 +65,7 @@
 - Remove duplicate and unrecognized activity events.
 - Avoid exposing absolute EC2 worktree paths in responses.
 - Add thread naming and renaming.
+- Allow Action Required threads to be archived, restored within seven days, and permanently purged after the retention window.
 - Reduce excessive agent token usage.
 - Safely archive or delete obsolete test projects.
 
