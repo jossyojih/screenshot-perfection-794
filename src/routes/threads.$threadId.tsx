@@ -289,6 +289,12 @@ function ThreadPage() {
   const j = mergeJobEvents(job.data, events);
   const earlierRuns = (conversation.data ?? []).filter((run) => run.id !== j.id);
   const conversationTitle = jobTitle(conversation.data?.[0] ?? j);
+  const currentRunTitle = jobTitle(j);
+  const normalizedPrompt = j.prompt
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[.!?]+$/, "");
+  const showOriginalRequest = normalizedPrompt.toLowerCase() !== currentRunTitle.toLowerCase();
   const canContinue =
     ["done", "failed", "cancelled"].includes(j.status) &&
     (!conversation.data || conversation.data.at(-1)?.id === j.id);
@@ -360,25 +366,25 @@ function ThreadPage() {
       }
     >
       <Page>
-        <section className="rounded-xl border border-edge bg-surface/50 p-4 lg:p-6">
-          <div className="mb-2 flex items-center gap-2">
+        <section className="rounded-lg border border-edge bg-surface/50 p-3 lg:p-4">
+          <div className="flex flex-wrap items-center gap-2">
             <StatusDot status={j.status} />
             <StatusPill status={j.status} />
             <span className="text-[10px] font-mono text-muted">
               · {j.agent} · {j.model}
               {j.reasoningLevel && ` · ${j.reasoningLevel}`}
             </span>
-          </div>
-          <h1 className="text-lg font-semibold leading-tight lg:text-2xl">{jobTitle(j)}</h1>
-          <RequestPanel prompt={j.prompt} className="mt-4" />
-          <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="rounded border border-glow/30 bg-glow-soft px-2 py-1 text-[9px] font-mono uppercase text-glow">
               {j.scopeMode ?? "manual"} scope
             </span>
-            <span className="text-[9px] font-mono text-muted">
+            <span className="ml-auto text-[9px] font-mono text-muted">
               updated {formatTime(j.updatedAt ?? j.createdAt)}
             </span>
           </div>
+          <h1 className="mt-2 text-base font-semibold leading-tight lg:text-xl">
+            {currentRunTitle}
+          </h1>
+          {showOriginalRequest && <RequestPanel prompt={j.prompt} compact className="mt-3" />}
         </section>
         {finalResponse}
         {(earlierRuns.length > 0 || j.status === "done" || events.length > 0 || j.usage) && (
