@@ -1,4 +1,4 @@
-const SHELL_CACHE = "command-center-shell-v1";
+const SHELL_CACHE = "command-center-shell-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -27,7 +27,7 @@ self.addEventListener("fetch", (event) => {
     return;
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: "no-store" })
         .then((response) => (response.ok ? response : Promise.reject()))
         .catch(() => caches.match("/")),
     );
@@ -38,6 +38,19 @@ self.addEventListener("fetch", (event) => {
     !["style", "script", "image", "font", "manifest"].includes(request.destination)
   )
     return;
+  const networkFirst = ["script", "style", "manifest"].includes(request.destination);
+  if (networkFirst) {
+    event.respondWith(
+      fetch(request, { cache: "no-store" })
+        .then((response) => {
+          if (response.ok && response.type === "basic")
+            caches.open(SHELL_CACHE).then((cache) => cache.put(request, response.clone()));
+          return response;
+        })
+        .catch(() => caches.match(request)),
+    );
+    return;
+  }
   event.respondWith(
     caches.match(request).then(
       (cached) =>
