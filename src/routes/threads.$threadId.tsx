@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   ChevronDown,
   GitCommitHorizontal,
-  GitPullRequest,
   LoaderCircle,
   TriangleAlert,
 } from "lucide-react";
@@ -287,7 +286,6 @@ function ThreadPage() {
   const canContinue =
     ["done", "failed", "cancelled"].includes(j.status) &&
     (!conversation.data || conversation.data.at(-1)?.id === j.id);
-  const completed = ["done", "failed", "cancelled"].includes(j.status);
   const selectedScopeSummary =
     followUpScope === "keep"
       ? `Current scope · ${(j.resolvedRepositoryIds ?? j.selectedRepositoryIds).length} repositor${(j.resolvedRepositoryIds ?? j.selectedRepositoryIds).length === 1 ? "y" : "ies"}`
@@ -375,38 +373,7 @@ function ThreadPage() {
             </span>
           </div>
         </section>
-        <details className="group rounded-xl border border-edge bg-surface/50 p-4 lg:p-6">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60 [&::-webkit-details-marker]:hidden">
-            <span className="text-[11px] font-mono uppercase tracking-widest text-muted">
-              Repository scope
-            </span>
-            <span className="flex shrink-0 items-center gap-2">
-              <span className="rounded-full border border-edge bg-void/50 px-2 py-1 text-[9px] font-mono text-muted">
-                {(j.resolvedRepositoryIds ?? j.selectedRepositoryIds).length} repositor
-                {(j.resolvedRepositoryIds ?? j.selectedRepositoryIds).length === 1 ? "y" : "ies"}
-              </span>
-              <ChevronDown
-                aria-hidden="true"
-                className="h-4 w-4 text-muted transition-transform group-open:rotate-180"
-              />
-            </span>
-          </summary>
-          <div className="mt-4 grid gap-3 border-t border-edge pt-4 md:grid-cols-2">
-            <ScopeList
-              title="Requested scope"
-              ids={j.requestedRepositoryIds ?? j.selectedRepositoryIds}
-              names={repoNames}
-              empty="No repositories requested; the planner chooses the minimum scope."
-            />
-            <ScopeList
-              title="Resolved scope"
-              ids={j.resolvedRepositoryIds ?? j.selectedRepositoryIds}
-              names={repoNames}
-              reasons={j.scopeReasons}
-              empty="Scope planning is pending."
-            />
-          </div>
-        </details>
+        {finalResponse}
         {earlierRuns.length > 0 && (
           <details className="group rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60 [&::-webkit-details-marker]:hidden">
@@ -589,7 +556,6 @@ function ThreadPage() {
             {streamError}
           </div>
         )}
-        {completed && finalResponse}
         {j.status === "done" && <ReviewChanges jobId={j.id} />}
         <section className="overflow-hidden rounded-xl border border-edge bg-surface/40">
           <h2>
@@ -625,7 +591,6 @@ function ThreadPage() {
             )}
           </div>
         </section>
-        {!completed && finalResponse}
         {j.error && (
           <section className="rounded-lg border-2 border-danger/60 bg-danger-soft p-4">
             <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-danger">
@@ -637,54 +602,6 @@ function ThreadPage() {
                 : (j.error.message ?? JSON.stringify(j.error, null, 2))}
             </p>
           </section>
-        )}
-        {j.repositoryResults && j.repositoryResults.length > 0 && (
-          <details className="group rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60 [&::-webkit-details-marker]:hidden">
-              <span className="text-[11px] font-mono uppercase tracking-widest text-muted">
-                Repository results
-              </span>
-              <span className="flex shrink-0 items-center gap-2">
-                <span className="rounded-full border border-edge bg-void/50 px-2 py-1 text-[9px] font-mono text-muted">
-                  {j.repositoryResults.length} result
-                  {j.repositoryResults.length === 1 ? "" : "s"}
-                </span>
-                <ChevronDown
-                  aria-hidden="true"
-                  className="h-4 w-4 text-muted transition-transform group-open:rotate-180"
-                />
-              </span>
-            </summary>
-            <div className="mt-4 grid gap-3 border-t border-edge pt-4 md:grid-cols-2">
-              {j.repositoryResults.map((result, i) => (
-                <div
-                  key={result.repositoryId ?? i}
-                  className="rounded-xl border border-edge bg-surface p-4"
-                >
-                  <div className="text-sm font-medium">
-                    {result.repositoryName ??
-                      repoNames.get(result.repositoryId ?? "") ??
-                      result.repositoryId ??
-                      `Repository ${i + 1}`}
-                  </div>
-                  {result.status && (
-                    <div className="mt-1 text-[9px] font-mono uppercase text-glow">
-                      {result.status}
-                    </div>
-                  )}
-                  {typeof result.scopeReason === "string" && (
-                    <p className="mt-2 text-xs text-muted">
-                      Included because: {result.scopeReason}
-                    </p>
-                  )}
-                  {result.summary && (
-                    <p className="mt-3 whitespace-pre-wrap text-xs text-muted">{result.summary}</p>
-                  )}
-                  {result.error && <p className="mt-3 text-xs text-danger">{result.error}</p>}
-                </div>
-              ))}
-            </div>
-          </details>
         )}
         {j.usage && (
           <details className="group rounded-xl border border-edge bg-surface/60 p-4">
@@ -719,13 +636,6 @@ function ThreadPage() {
             id="continue-conversation"
             className="sticky bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] min-w-0 overflow-hidden rounded-xl border border-glow/40 bg-void/95 p-3 shadow-xl backdrop-blur min-[380px]:p-4 lg:bottom-3 lg:p-5"
           >
-            <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-glow">
-              Continue conversation
-            </h2>
-            <p className="mb-3 hidden text-xs text-muted sm:block">
-              Starts a linked run with the same {j.agent} agent. Choose whether to retain or correct
-              repository scope.
-            </p>
             <button
               type="button"
               aria-expanded={followUpSettingsOpen}
@@ -735,7 +645,7 @@ function ThreadPage() {
             >
               <span className="min-w-0">
                 <span className="block text-[10px] font-mono uppercase tracking-wider text-muted">
-                  Run settings
+                  Continue conversation
                 </span>
                 <span
                   className="block truncate text-xs"
@@ -1035,26 +945,43 @@ function ReviewChanges({ jobId }: { jobId: string }) {
     Boolean(data.promotion?.repositories.length) &&
     data.promotion!.repositories.every((result) => result.status === "promoted");
   const failed = data.promotion?.repositories.filter((repo) => repo.status === "failed") ?? [];
-  if (!open && reviewable && !promoted)
+  if (!open)
     return (
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex min-h-16 w-full items-center justify-between gap-3 rounded-xl border-2 border-glow/60 bg-glow-soft p-4 text-left shadow-glow transition hover:border-glow lg:p-5"
+        aria-expanded="false"
+        className={`flex min-h-16 w-full items-center justify-between gap-3 rounded-xl p-4 text-left transition lg:p-5 ${reviewable && !promoted ? "border-2 border-glow/60 bg-glow-soft shadow-glow hover:border-glow" : "border border-edge bg-surface/50 hover:bg-surface"}`}
       >
         <span>
           <span className="block text-sm font-semibold">Review changes</span>
           <span className="mt-1 block text-xs text-muted">
-            Awaiting review. Inspect files and diffs before approving a Git push.
+            {promoted
+              ? "Changes were pushed to GitHub. Open for promotion and deployment details."
+              : reviewable
+                ? "Awaiting review. Inspect files and diffs before approving a Git push."
+                : data.hasChanges
+                  ? "Open promotion details."
+                  : "No repository changes were produced."}
           </span>
         </span>
-        <GitPullRequest className="size-5 text-glow" aria-hidden="true" />
+        <ChevronDown className="size-4 shrink-0 text-muted" aria-hidden="true" />
       </button>
     );
   if (!data.hasChanges && !data.promotion)
     return (
       <section className="rounded-xl border border-edge bg-surface/50 p-4">
-        <div className="text-sm font-medium">No changes to promote</div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-sm font-medium">No changes to promote</div>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 text-[10px] font-mono uppercase text-muted"
+          >
+            Collapse
+            <ChevronDown className="size-4 rotate-180" aria-hidden="true" />
+          </button>
+        </div>
         <p className="mt-1 text-xs text-muted">This job did not modify any repository files.</p>
         <a
           href="#continue-conversation"
@@ -1067,7 +994,17 @@ function ReviewChanges({ jobId }: { jobId: string }) {
   if (!reviewable && data.hasChanges)
     return (
       <section className="rounded-xl border border-edge bg-surface/50 p-4">
-        <h2 className="text-sm font-semibold">Promotion results</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold">Promotion results</h2>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 text-[10px] font-mono uppercase text-muted"
+          >
+            Collapse
+            <ChevronDown className="size-4 rotate-180" aria-hidden="true" />
+          </button>
+        </div>
         <div className="mt-3 space-y-2">
           {data.repositories
             .filter((repo) => repo.hasChanges)
@@ -1109,16 +1046,16 @@ function ReviewChanges({ jobId }: { jobId: string }) {
             Only selected repositories will be committed and pushed.
           </p>
         </div>
-        {!promoted && (
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => setOpen((value) => !value)}
-            className="min-h-11 self-start rounded-md px-2 text-[10px] font-mono uppercase text-muted disabled:opacity-50 sm:min-h-0 sm:self-auto sm:p-0"
-          >
-            {open ? "Collapse" : "Open review"}
-          </button>
-        )}
+        <button
+          type="button"
+          disabled={submitting}
+          aria-expanded="true"
+          onClick={() => setOpen(false)}
+          className="flex min-h-11 items-center gap-2 self-start rounded-md px-2 text-[10px] font-mono uppercase text-muted disabled:opacity-50 sm:min-h-0 sm:self-auto sm:p-0"
+        >
+          Collapse
+          <ChevronDown className="size-4 rotate-180" aria-hidden="true" />
+        </button>
       </div>
       {promoted && !submitting && (
         <div className="border-b border-glow/30 bg-glow-soft p-4">
@@ -1384,42 +1321,6 @@ function DeploymentProgress({ deployments }: { deployments: Deployment[] }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-function ScopeList({
-  title,
-  ids,
-  names,
-  reasons,
-  empty,
-}: {
-  title: string;
-  ids: string[];
-  names: Map<string, string>;
-  reasons?: Job["scopeReasons"];
-  empty: string;
-}) {
-  return (
-    <div>
-      <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-muted">{title}</h2>
-      {ids.length ? (
-        <ul className="space-y-2">
-          {ids.map((id) => (
-            <li key={id} className="rounded-lg border border-edge bg-void/50 p-3">
-              <div className="text-xs font-medium">{names.get(id) ?? id}</div>
-              {reasons?.find((reason) => reason.repositoryId === id)?.reason && (
-                <p className="mt-1 text-[10px] leading-relaxed text-muted">
-                  {reasons.find((reason) => reason.repositoryId === id)?.reason}
-                </p>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-xs text-muted">{empty}</p>
-      )}
     </div>
   );
 }
