@@ -64,7 +64,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className={`min-w-0 ${bottomBar === false ? "pb-8" : "pb-28 lg:pb-24"}`}>
+        <main className={`min-w-0 ${bottomBar === false ? "pb-0" : "pb-28 lg:pb-24"}`}>
           {children}
         </main>
 

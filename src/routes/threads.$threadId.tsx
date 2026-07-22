@@ -846,9 +846,9 @@ function ThreadPage() {
                   id="follow-up-prompt"
                   value={followUp}
                   onChange={(event) => setFollowUp(event.target.value)}
-                  rows={2}
+                  rows={1}
                   placeholder="Ask a follow-up…"
-                  className="block min-h-[84px] w-full min-w-0 max-w-full resize-none rounded-none border-0 bg-void px-3 pb-11 pt-3 text-base focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
+                  className="block min-h-16 w-full min-w-0 max-w-full resize-none rounded-none border-0 bg-void px-3 pb-10 pt-2 text-base focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
                 />
                 <div className="absolute inset-x-2 bottom-1 flex items-center justify-between gap-2">
                   <button
@@ -888,7 +888,6 @@ function ThreadPage() {
             </form>
           </section>
         )}
-        {canContinue && <div aria-hidden="true" className="h-24" />}
       </Page>
     </AppShell>
   );
