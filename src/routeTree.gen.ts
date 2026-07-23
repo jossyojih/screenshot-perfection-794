@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ArchivedRouteImport } from './routes/archived'
 import { Route as ComposeRouteImport } from './routes/compose'
+import { Route as DunaRouteImport } from './routes/duna'
 import { Route as LogsRouteImport } from './routes/logs'
 import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as ProjectsRouteImport } from './routes/projects'
@@ -31,6 +32,11 @@ const ArchivedRoute = ArchivedRouteImport.update({
 const ComposeRoute = ComposeRouteImport.update({
   id: '/compose',
   path: '/compose',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DunaRoute = DunaRouteImport.update({
+  id: '/duna',
+  path: '/duna',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LogsRoute = LogsRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/archived': typeof ArchivedRoute
   '/compose': typeof ComposeRoute
+  '/duna': typeof DunaRoute
   '/logs': typeof LogsRoute
   '/maintenance': typeof MaintenanceRoute
   '/projects': typeof ProjectsRouteWithChildren
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/archived': typeof ArchivedRoute
   '/compose': typeof ComposeRoute
+  '/duna': typeof DunaRoute
   '/logs': typeof LogsRoute
   '/maintenance': typeof MaintenanceRoute
   '/projects': typeof ProjectsRouteWithChildren
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/archived': typeof ArchivedRoute
   '/compose': typeof ComposeRoute
+  '/duna': typeof DunaRoute
   '/logs': typeof LogsRoute
   '/maintenance': typeof MaintenanceRoute
   '/projects': typeof ProjectsRouteWithChildren
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/archived'
     | '/compose'
+    | '/duna'
     | '/logs'
     | '/maintenance'
     | '/projects'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/archived'
     | '/compose'
+    | '/duna'
     | '/logs'
     | '/maintenance'
     | '/projects'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/archived'
     | '/compose'
+    | '/duna'
     | '/logs'
     | '/maintenance'
     | '/projects'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ArchivedRoute: typeof ArchivedRoute
   ComposeRoute: typeof ComposeRoute
+  DunaRoute: typeof DunaRoute
   LogsRoute: typeof LogsRoute
   MaintenanceRoute: typeof MaintenanceRoute
   ProjectsRoute: typeof ProjectsRouteWithChildren
@@ -154,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/compose'
       fullPath: '/compose'
       preLoaderRoute: typeof ComposeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/duna': {
+      id: '/duna'
+      path: '/duna'
+      fullPath: '/duna'
+      preLoaderRoute: typeof DunaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/logs': {
@@ -210,6 +230,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ArchivedRoute: ArchivedRoute,
   ComposeRoute: ComposeRoute,
+  DunaRoute: DunaRoute,
   LogsRoute: LogsRoute,
   MaintenanceRoute: MaintenanceRoute,
   ProjectsRoute: ProjectsRouteWithChildren,

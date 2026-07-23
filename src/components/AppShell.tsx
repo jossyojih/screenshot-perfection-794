@@ -9,6 +9,7 @@ import {
   Plus,
   TerminalSquare,
   LogOut,
+  Waves,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -16,7 +17,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "./NotificationBell";
 import { useAuth } from "@/lib/auth";
 
-type NavRoute = "/" | "/projects" | "/logs" | "/archived" | "/maintenance";
+type NavRoute = "/" | "/projects" | "/logs" | "/archived" | "/maintenance" | "/duna";
 
 const NAV_ITEMS: {
   to: NavRoute;
@@ -29,6 +30,7 @@ const NAV_ITEMS: {
   { to: "/archived", label: "Archived threads", mobileLabel: "ARCH", icon: Archive },
   { to: "/projects", label: "Projects", mobileLabel: "PROJ", icon: FolderKanban },
   { to: "/logs", label: "Agent logs", mobileLabel: "LOGS", icon: TerminalSquare },
+  { to: "/duna", label: "Duna", mobileLabel: "DUNA", icon: Waves },
   { to: "/maintenance", label: "Storage", mobileLabel: "STORAGE", icon: HardDrive },
 ];
 
@@ -200,7 +202,7 @@ function MobileBottomBar({ pathname }: { pathname: string }) {
         <Plus className="size-5" />
       </Link>
 
-      <nav className="grid grid-cols-5">
+      <nav className="grid grid-cols-6">
         {NAV_ITEMS.map((item) => (
           <MobileNavItem
             key={item.to}
