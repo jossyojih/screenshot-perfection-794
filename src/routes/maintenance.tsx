@@ -57,6 +57,8 @@ interface WorktreeSummary {
 }
 
 interface CleanupPreview {
+  retainedWorktreeCount: number;
+  classifiedWorktreeCount: number;
   eligible: Array<WorktreeSummary & { estimatedBytes: number }>;
   protectedWorktrees: WorktreeSummary[];
 }
@@ -66,8 +68,18 @@ interface CleanupHistory {
   failed: Array<WorktreeSummary & { errorCode: string; failedAt: string }>;
 }
 
+const MAINTENANCE_REQUEST_TIMEOUT_MS = 15_000;
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await authenticatedFetch(path, init);
+  const timeoutSignal = AbortSignal.timeout(MAINTENANCE_REQUEST_TIMEOUT_MS);
+  const signal = init?.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal;
+  let response: Response;
+  try {
+    response = await authenticatedFetch(path, { ...init, signal });
+  } catch (error) {
+    if (timeoutSignal.aborted) throw new Error("The maintenance request timed out. Try again.");
+    throw error;
+  }
   if (!response.ok) {
     let message =
       response.status === 401
@@ -110,17 +122,20 @@ function MaintenancePage() {
   const submitting = useRef(false);
   const status = useQuery({
     queryKey: ["maintenance", "status"],
-    queryFn: () => request<MaintenanceStatus>("/maintenance/status"),
+    queryFn: ({ signal }) => request<MaintenanceStatus>("/maintenance/status", { signal }),
     refetchInterval: (query) => (query.state.data?.isRunning ? 2_000 : 10_000),
+    retry: 1,
   });
   const preview = useQuery({
     queryKey: ["maintenance", "preview"],
-    queryFn: () => request<CleanupPreview>("/maintenance/preview"),
+    queryFn: ({ signal }) => request<CleanupPreview>("/maintenance/preview", { signal }),
     enabled: !status.data?.isRunning,
+    retry: 1,
   });
   const history = useQuery({
     queryKey: ["maintenance", "history"],
-    queryFn: () => request<CleanupHistory>("/maintenance/history"),
+    queryFn: ({ signal }) => request<CleanupHistory>("/maintenance/history", { signal }),
+    retry: 1,
   });
   const cleanup = useMutation({
     mutationFn: () => request<{ started: true }>("/maintenance/cleanup", { method: "POST" }),
@@ -167,6 +182,11 @@ function MaintenancePage() {
   const running = status.data.isRunning || cleanup.isPending;
   const eligible = preview.data?.eligible ?? [];
   const protectedWorktrees = preview.data?.protectedWorktrees ?? [];
+  const retainedWorktreeCount =
+    preview.data?.retainedWorktreeCount ?? status.data.retainedWorktreeCount;
+  const classificationMismatch =
+    preview.data !== undefined &&
+    preview.data.classifiedWorktreeCount !== preview.data.retainedWorktreeCount;
   const historyItems = [
     ...(history.data?.cleaned.map((item) => ({
       ...item,
@@ -220,7 +240,7 @@ function MaintenancePage() {
             icon={<HardDrive />}
             label="Runs-root usage"
             value={formatBytes(status.data.diskUsageBytes)}
-            detail={`${status.data.retainedWorktreeCount} retained worktrees`}
+            detail={`${retainedWorktreeCount} retained worktrees`}
           />
           <Metric
             icon={<Trash2 />}
@@ -241,6 +261,26 @@ function MaintenancePage() {
             detail="Retention policy preserved"
           />
         </dl>
+
+        {classificationMismatch && (
+          <div
+            role="alert"
+            className="mt-4 rounded-xl border border-danger/50 bg-danger-soft p-4 text-sm"
+          >
+            <div className="font-medium text-danger">Preview count mismatch</div>
+            <p className="mt-1 text-muted">
+              {preview.data.classifiedWorktreeCount} of {preview.data.retainedWorktreeCount}{" "}
+              retained worktrees were classified. Retry the preview; cleanup remains unavailable.
+            </p>
+            <button
+              type="button"
+              onClick={() => preview.refetch()}
+              className="mt-3 rounded-md border border-danger/50 px-3 py-2 text-xs"
+            >
+              Retry preview
+            </button>
+          </div>
+        )}
 
         <section className="mt-6 rounded-xl border border-edge bg-surface p-4 sm:p-5">
           <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -273,7 +313,12 @@ function MaintenancePage() {
               <AlertDialogTrigger asChild>
                 <button
                   type="button"
-                  disabled={!status.data.cleanupEnabled || running || eligible.length === 0}
+                  disabled={
+                    !status.data.cleanupEnabled ||
+                    running ||
+                    eligible.length === 0 ||
+                    classificationMismatch
+                  }
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-glow px-4 text-xs font-bold text-void disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {running ? (
@@ -432,7 +477,7 @@ function WorktreeList({
       <h3 className="font-medium">{title}</h3>
       <p className="mt-1 text-xs text-muted">{description}</p>
       <div className="mt-4">
-        {query.isPending || query.isFetching ? (
+        {query.isPending ? (
           <LoadingState label={`Loading ${title.toLowerCase()}…`} />
         ) : query.isError ? (
           <ErrorState error={query.error} retry={() => query.refetch()} />
@@ -461,6 +506,11 @@ function WorktreeList({
               </article>
             ))}
           </div>
+        )}
+        {query.isFetching && !query.isPending && (
+          <p role="status" className="mt-3 text-xs text-muted">
+            Refreshing preview…
+          </p>
         )}
       </div>
     </section>
