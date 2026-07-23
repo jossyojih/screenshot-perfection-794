@@ -201,6 +201,11 @@ function MobileBottomBar({ pathname }: { pathname: string }) {
         <MobileNavItem to="/projects" label="PROJ" active={pathname.startsWith("/projects")} />
         <MobileNavItem to="/logs" label="LOGS" active={pathname.startsWith("/logs")} />
         <MobileNavItem to="/archived" label="ARCH" active={pathname.startsWith("/archived")} />
+        <MobileNavItem
+          to="/maintenance"
+          label="STORE"
+          active={pathname.startsWith("/maintenance")}
+        />
       </nav>
     </div>
   );
@@ -211,7 +216,7 @@ function MobileNavItem({
   label,
   active,
 }: {
-  to: "/" | "/projects" | "/logs" | "/archived";
+  to: "/" | "/projects" | "/logs" | "/archived" | "/maintenance";
   label: string;
   active: boolean;
 }) {

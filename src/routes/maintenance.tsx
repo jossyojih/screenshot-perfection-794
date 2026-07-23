@@ -1,9 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  AlertCircle,
+  Archive,
+  CheckCircle2,
+  Clock3,
+  Eye,
+  HardDrive,
+  LoaderCircle,
+  Play,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
+import { useRef } from "react";
+import { AppShell } from "@/components/AppShell";
+import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,364 +26,443 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { HardDrive, Trash2, Clock, CheckCircle2, AlertCircle, Loader2, Play } from "lucide-react";
-import { toast } from "sonner";
-import { authFetch } from "@/lib/auth";
+import { authenticatedFetch } from "@/lib/api";
 
 export const Route = createFileRoute("/maintenance")({
+  head: () => ({ meta: [{ title: "Storage & Maintenance — Command Center" }] }),
   component: MaintenancePage,
 });
 
 interface MaintenanceStatus {
+  cleanupEnabled: boolean;
   lastRunAt?: string;
   lastRunCompletedAt?: string;
+  nextRunAt?: string;
   isRunning: boolean;
   eligibleWorktrees: number;
   protectedWorktrees: number;
   lastCleanedCount: number;
   lastFailedCount: number;
   totalReclaimedBytes: number;
+  diskUsageBytes?: number;
   retainedWorktreeCount: number;
   retainedWorktreeBytes?: number;
+  archivedThreads: number;
+}
+
+interface WorktreeSummary {
+  jobId: string;
+  repositoryId: string;
+  reason: string;
 }
 
 interface CleanupPreview {
-  eligible: Array<{
-    jobId: string;
-    repositoryId: string;
-    reason: string;
-    estimatedBytes: number;
-  }>;
-  protectedWorktrees: Array<{
-    jobId: string;
-    repositoryId: string;
-    reason: string;
-  }>;
+  eligible: Array<WorktreeSummary & { estimatedBytes: number }>;
+  protectedWorktrees: WorktreeSummary[];
 }
 
 interface CleanupHistory {
-  cleaned: Array<{
-    jobId: string;
-    repositoryId: string;
-    worktreePath: string;
-    reason: string;
-    reclaimedBytes: number;
-    cleanedAt: string;
-  }>;
-  failed: Array<{
-    jobId: string;
-    repositoryId: string;
-    worktreePath: string;
-    reason: string;
-    errorCode: string;
-    failedAt: string;
-  }>;
+  cleaned: Array<WorktreeSummary & { reclaimedBytes: number; cleanedAt: string }>;
+  failed: Array<WorktreeSummary & { errorCode: string; failedAt: string }>;
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await authenticatedFetch(path, init);
+  if (!response.ok) {
+    let message =
+      response.status === 401
+        ? "Your session has expired. Sign in again."
+        : `Request failed (${response.status}).`;
+    try {
+      const body = (await response.json()) as { error?: string };
+      message = body.error ?? message;
+    } catch {
+      // Keep the safe status-based message; never display a raw response.
+    }
+    throw new Error(message);
+  }
+  return response.json() as Promise<T>;
 }
 
-function formatRelativeTime(isoString: string): string {
-  const date = new Date(isoString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
+const formatBytes = (bytes?: number) => {
+  if (bytes === undefined) return "Unavailable";
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unit]}`;
+};
 
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${diffDays}d ago`;
-}
+const formatDate = (value?: string) =>
+  value
+    ? new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(value))
+    : "Not yet";
 
 function MaintenancePage() {
   const queryClient = useQueryClient();
-
-  const { data: status, isLoading: statusLoading } = useQuery<MaintenanceStatus>({
+  const submitting = useRef(false);
+  const status = useQuery({
     queryKey: ["maintenance", "status"],
-    queryFn: async () => {
-      const response = await authFetch("/maintenance/status");
-      if (!response.ok) throw new Error("Failed to fetch maintenance status");
-      return response.json();
-    },
-    refetchInterval: 10000,
+    queryFn: () => request<MaintenanceStatus>("/maintenance/status"),
+    refetchInterval: (query) => (query.state.data?.isRunning ? 2_000 : 10_000),
   });
-
-  const { data: preview } = useQuery<CleanupPreview>({
+  const preview = useQuery({
     queryKey: ["maintenance", "preview"],
-    queryFn: async () => {
-      const response = await authFetch("/maintenance/preview");
-      if (!response.ok) throw new Error("Failed to fetch cleanup preview");
-      return response.json();
-    },
-    enabled: !status?.isRunning,
+    queryFn: () => request<CleanupPreview>("/maintenance/preview"),
+    enabled: !status.data?.isRunning,
   });
-
-  const { data: history } = useQuery<CleanupHistory>({
+  const history = useQuery({
     queryKey: ["maintenance", "history"],
-    queryFn: async () => {
-      const response = await authFetch("/maintenance/history");
-      if (!response.ok) throw new Error("Failed to fetch cleanup history");
-      return response.json();
+    queryFn: () => request<CleanupHistory>("/maintenance/history"),
+  });
+  const cleanup = useMutation({
+    mutationFn: () => request<{ started: true }>("/maintenance/cleanup", { method: "POST" }),
+    onMutate: () => {
+      submitting.current = true;
+    },
+    onSettled: async () => {
+      submitting.current = false;
+      await queryClient.invalidateQueries({ queryKey: ["maintenance"] });
     },
   });
 
-  const cleanupMutation = useMutation({
-    mutationFn: async () => {
-      const response = await authFetch("/maintenance/cleanup", { method: "POST" });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Cleanup failed");
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      toast.success("Cleanup started", {
-        description: "Maintenance cleanup is now running in the background.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["maintenance"] });
-    },
-    onError: (error: Error) => {
-      toast.error("Cleanup failed", {
-        description: error.message,
-      });
-    },
-  });
+  const runCleanup = () => {
+    if (
+      submitting.current ||
+      cleanup.isPending ||
+      status.data?.isRunning ||
+      !status.data?.cleanupEnabled
+    )
+      return;
+    cleanup.mutate();
+  };
 
-  if (statusLoading) {
+  if (status.isPending) {
     return (
-      <div className="container max-w-6xl py-8">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <AppShell title="Storage & Maintenance">
+        <div className="mx-auto w-full max-w-6xl px-4 py-8 lg:px-8">
+          <LoadingState label="Loading storage and maintenance status…" />
         </div>
-      </div>
+      </AppShell>
     );
   }
 
+  if (status.isError) {
+    return (
+      <AppShell title="Storage & Maintenance">
+        <div className="mx-auto w-full max-w-6xl px-4 py-8 lg:px-8">
+          <ErrorState error={status.error} retry={() => status.refetch()} />
+        </div>
+      </AppShell>
+    );
+  }
+
+  const running = status.data.isRunning || cleanup.isPending;
+  const eligible = preview.data?.eligible ?? [];
+  const protectedWorktrees = preview.data?.protectedWorktrees ?? [];
+  const historyItems = [
+    ...(history.data?.cleaned.map((item) => ({
+      ...item,
+      kind: "cleaned" as const,
+      at: item.cleanedAt,
+    })) ?? []),
+    ...(history.data?.failed.map((item) => ({
+      ...item,
+      kind: "failed" as const,
+      at: item.failedAt,
+    })) ?? []),
+  ]
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+    .slice(0, 10);
+
   return (
-    <div className="container max-w-6xl py-4 sm:py-8 px-4 sm:px-6">
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2">Storage & Maintenance</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">
-          Monitor disk usage and manage worktree cleanup
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6 sm:mb-8">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <HardDrive className="h-4 w-4" />
-              Retained Worktrees
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{status?.retainedWorktreeCount ?? 0}</div>
-            {status?.retainedWorktreeBytes !== undefined && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {formatBytes(status.retainedWorktreeBytes)}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Trash2 className="h-4 w-4" />
-              Eligible for Cleanup
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{status?.eligibleWorktrees ?? 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {preview?.eligible.length ?? 0} in preview
+    <AppShell title="Storage & Maintenance">
+      <div className="mx-auto w-full max-w-6xl overflow-hidden px-4 py-8 lg:px-8">
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-xl font-semibold">Storage & maintenance</h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted">
+              Review retained worktrees and the server-controlled cleanup schedule.
             </p>
-          </CardContent>
-        </Card>
+          </div>
+          <span
+            className={`inline-flex w-fit shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ${
+              status.data.cleanupEnabled
+                ? "border-glow/30 bg-glow-soft text-glow"
+                : "border-edge bg-surface text-muted"
+            }`}
+          >
+            <span
+              className={`size-1.5 rounded-full ${status.data.cleanupEnabled ? "bg-glow" : "bg-muted"}`}
+            />
+            Cleanup {status.data.cleanupEnabled ? "enabled" : "disabled"}
+          </span>
+        </div>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4" />
-              Last Run
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{status?.lastCleanedCount ?? 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {status?.lastRunCompletedAt ? formatRelativeTime(status.lastRunCompletedAt) : "Never"}
+        {!status.data.cleanupEnabled && (
+          <div role="status" className="mt-5 rounded-xl border border-edge bg-surface p-4 text-sm">
+            <div className="font-medium">Cleanup is disabled by server policy</div>
+            <p className="mt-1 text-muted">
+              Preview remains available, but cleanup cannot be started from this app.
             </p>
-          </CardContent>
-        </Card>
+          </div>
+        )}
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <HardDrive className="h-4 w-4" />
-              Total Reclaimed
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatBytes(status?.totalReclaimedBytes ?? 0)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">All time</p>
-          </CardContent>
-        </Card>
-      </div>
+        <dl className="mt-6 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Metric
+            icon={<HardDrive />}
+            label="Runs-root usage"
+            value={formatBytes(status.data.diskUsageBytes)}
+            detail={`${status.data.retainedWorktreeCount} retained worktrees`}
+          />
+          <Metric
+            icon={<Trash2 />}
+            label="Eligible worktrees"
+            value={String(eligible.length)}
+            detail={formatBytes(eligible.reduce((sum, item) => sum + item.estimatedBytes, 0))}
+          />
+          <Metric
+            icon={<ShieldCheck />}
+            label="Protected worktrees"
+            value={String(protectedWorktrees.length)}
+            detail="Every item has a reason"
+          />
+          <Metric
+            icon={<Archive />}
+            label="Archived threads"
+            value={String(status.data.archivedThreads)}
+            detail="Retention policy preserved"
+          />
+        </dl>
 
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2 mb-6 sm:mb-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Cleanup Preview
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button size="sm" disabled={status?.isRunning || cleanupMutation.isPending}>
-                    {status?.isRunning || cleanupMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Running
-                      </>
+        <section className="mt-6 rounded-xl border border-edge bg-surface p-4 sm:p-5">
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <ScheduleItem label="Last started" value={formatDate(status.data.lastRunAt)} />
+            <ScheduleItem
+              label="Last completed"
+              value={formatDate(status.data.lastRunCompletedAt)}
+            />
+            <ScheduleItem label="Next scheduled run" value={formatDate(status.data.nextRunAt)} />
+            <ScheduleItem
+              label="Last result"
+              value={`${status.data.lastCleanedCount} cleaned · ${status.data.lastFailedCount} failed`}
+            />
+          </div>
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => preview.refetch()}
+              disabled={preview.isFetching || running}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-edge px-4 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {preview.isFetching ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                <Eye className="size-4" />
+              )}
+              Preview cleanup
+            </button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  type="button"
+                  disabled={!status.data.cleanupEnabled || running || eligible.length === 0}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-glow px-4 text-xs font-bold text-void disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {running ? (
+                    <LoaderCircle className="size-4 animate-spin" />
+                  ) : (
+                    <Play className="size-4" />
+                  )}
+                  {running ? "Cleanup running" : "Run cleanup"}
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Run cleanup now?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    The server will remove up to {eligible.length} currently eligible worktrees
+                    according to its batch and retention policies. Protected worktrees and archived
+                    threads still within retention are not removed.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction disabled={running} onClick={runCleanup}>
+                    Confirm cleanup
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+          {cleanup.isError && (
+            <p role="alert" className="mt-3 text-sm text-danger">
+              {cleanup.error.message}
+            </p>
+          )}
+          {cleanup.isSuccess && (
+            <p role="status" className="mt-3 text-sm text-glow">
+              Cleanup started. Status will refresh automatically.
+            </p>
+          )}
+        </section>
+
+        <div className="mt-6 grid min-w-0 gap-4 lg:grid-cols-2">
+          <WorktreeList
+            title="Eligible worktrees"
+            description="Safe to remove under current server policy."
+            query={preview}
+            items={eligible}
+            eligible
+          />
+          <WorktreeList
+            title="Protected worktrees"
+            description="Kept for the reason shown on every item."
+            query={preview}
+            items={protectedWorktrees}
+          />
+        </div>
+
+        <section className="mt-6 min-w-0 rounded-xl border border-edge bg-surface p-4 sm:p-5">
+          <h3 className="font-medium">Recent cleanup history</h3>
+          <p className="mt-1 text-xs text-muted">
+            Cleanup results are shown without filesystem details or raw output.
+          </p>
+          <div className="mt-4">
+            {history.isPending ? (
+              <LoadingState label="Loading cleanup history…" />
+            ) : history.isError ? (
+              <ErrorState error={history.error} retry={() => history.refetch()} />
+            ) : historyItems.length === 0 ? (
+              <DataState title="No cleanup history yet." />
+            ) : (
+              <div className="space-y-2">
+                {historyItems.map((item) => (
+                  <div
+                    key={`${item.kind}-${item.jobId}-${item.repositoryId}-${item.at}`}
+                    className="flex min-w-0 flex-col gap-2 rounded-lg border border-edge p-3 sm:flex-row sm:items-center"
+                  >
+                    {item.kind === "cleaned" ? (
+                      <CheckCircle2 className="size-4 shrink-0 text-glow" />
                     ) : (
-                      <>
-                        <Play className="mr-2 h-4 w-4" />
-                        Run Cleanup
-                      </>
+                      <AlertCircle className="size-4 shrink-0 text-danger" />
                     )}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Confirm Cleanup</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently remove {preview?.eligible.length ?? 0} eligible
-                      worktrees. {preview?.protectedWorktrees.length ?? 0} protected worktrees with
-                      pending changes will not be affected.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => cleanupMutation.mutate()}>
-                      Run Cleanup
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </CardTitle>
-            <CardDescription>Worktrees that can be safely removed</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {preview && preview.eligible.length > 0 ? (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {preview.eligible.slice(0, 10).map((item) => (
-                  <div
-                    key={`${item.jobId}-${item.repositoryId}`}
-                    className="flex items-start justify-between gap-2 p-2 border rounded text-sm"
-                  >
                     <div className="min-w-0 flex-1">
-                      <div className="font-mono text-xs truncate">{item.jobId.slice(0, 8)}</div>
-                      <div className="text-xs text-muted-foreground">{item.reason}</div>
+                      <div className="break-words text-sm">
+                        {item.kind === "cleaned"
+                          ? item.reason
+                          : `Cleanup failed (${item.errorCode})`}
+                      </div>
+                      <div className="mt-1 break-all text-[10px] font-mono text-muted">
+                        Job {item.jobId} · repository {item.repositoryId}
+                      </div>
                     </div>
-                    <Badge variant="outline" className="shrink-0 text-xs">
-                      {formatBytes(item.estimatedBytes)}
-                    </Badge>
-                  </div>
-                ))}
-                {preview.eligible.length > 10 && (
-                  <div className="text-xs text-center text-muted-foreground py-2">
-                    + {preview.eligible.length - 10} more
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground py-4 text-center">
-                No worktrees eligible for cleanup
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Protected Worktrees</CardTitle>
-            <CardDescription>Worktrees that will be kept</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {preview && preview.protectedWorktrees.length > 0 ? (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {preview.protectedWorktrees.slice(0, 10).map((item) => (
-                  <div
-                    key={`${item.jobId}-${item.repositoryId}`}
-                    className="flex items-start justify-between gap-2 p-2 border rounded text-sm"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="font-mono text-xs truncate">{item.jobId.slice(0, 8)}</div>
-                      <div className="text-xs text-muted-foreground">{item.reason}</div>
+                    <div className="shrink-0 text-xs text-muted">
+                      {item.kind === "cleaned" && `${formatBytes(item.reclaimedBytes)} · `}
+                      {formatDate(item.at)}
                     </div>
                   </div>
                 ))}
-                {preview.protectedWorktrees.length > 10 && (
-                  <div className="text-xs text-center text-muted-foreground py-2">
-                    + {preview.protectedWorktrees.length - 10} more
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground py-4 text-center">
-                No protected worktrees
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
+    </AppShell>
+  );
+}
 
-      {history && (history.cleaned.length > 0 || history.failed.length > 0) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest cleanup operations</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {history.cleaned.slice(0, 5).map((item, idx) => (
-                <div key={idx} className="flex items-start gap-3 text-sm">
-                  <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-mono text-xs truncate">{item.jobId.slice(0, 8)}</div>
-                    <div className="text-xs text-muted-foreground">{item.reason}</div>
-                  </div>
-                  <div className="text-xs text-muted-foreground shrink-0">
-                    {formatBytes(item.reclaimedBytes)}
-                  </div>
-                  <div className="text-xs text-muted-foreground shrink-0">
-                    {formatRelativeTime(item.cleanedAt)}
-                  </div>
-                </div>
-              ))}
-              {history.failed.slice(0, 3).map((item, idx) => (
-                <div key={idx} className="flex items-start gap-3 text-sm">
-                  <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-mono text-xs truncate">{item.jobId.slice(0, 8)}</div>
-                    <div className="text-xs text-muted-foreground">{item.errorCode}</div>
-                  </div>
-                  <div className="text-xs text-muted-foreground shrink-0">
-                    {formatRelativeTime(item.failedAt)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+function Metric({
+  icon,
+  label,
+  value,
+  detail,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-xl border border-edge bg-surface p-4">
+      <dt className="flex items-center gap-2 text-xs text-muted">
+        <span className="[&>svg]:size-4">{icon}</span>
+        {label}
+      </dt>
+      <dd className="mt-3 break-words text-2xl font-semibold">{value}</dd>
+      <div className="mt-1 break-words text-xs text-muted">{detail}</div>
     </div>
+  );
+}
+
+function ScheduleItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted">
+        <Clock3 className="size-3" />
+        {label}
+      </dt>
+      <dd className="mt-1 break-words text-sm">{value}</dd>
+    </div>
+  );
+}
+
+function WorktreeList({
+  title,
+  description,
+  query,
+  items,
+  eligible = false,
+}: {
+  title: string;
+  description: string;
+  query: ReturnType<typeof useQuery<CleanupPreview>>;
+  items: Array<WorktreeSummary & { estimatedBytes?: number }>;
+  eligible?: boolean;
+}) {
+  return (
+    <section className="min-w-0 rounded-xl border border-edge bg-surface p-4 sm:p-5">
+      <h3 className="font-medium">{title}</h3>
+      <p className="mt-1 text-xs text-muted">{description}</p>
+      <div className="mt-4">
+        {query.isPending || query.isFetching ? (
+          <LoadingState label={`Loading ${title.toLowerCase()}…`} />
+        ) : query.isError ? (
+          <ErrorState error={query.error} retry={() => query.refetch()} />
+        ) : items.length === 0 ? (
+          <DataState title={`No ${title.toLowerCase()}.`} />
+        ) : (
+          <div className="max-h-96 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
+            {items.map((item) => (
+              <article
+                key={`${item.jobId}-${item.repositoryId}`}
+                className="min-w-0 rounded-lg border border-edge p-3"
+              >
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="break-words text-sm">{item.reason}</div>
+                    <div className="mt-1 break-all text-[10px] font-mono text-muted">
+                      Job {item.jobId} · repository {item.repositoryId}
+                    </div>
+                  </div>
+                  {eligible && (
+                    <span className="shrink-0 text-xs text-muted">
+                      {formatBytes(item.estimatedBytes)}
+                    </span>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
