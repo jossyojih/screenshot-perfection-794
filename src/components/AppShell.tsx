@@ -82,8 +82,8 @@ export function AppShell({
 
 function DesktopSidebar({ pathname }: { pathname: string }) {
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-edge bg-surface/45 lg:flex">
-      <Link to="/" className="flex h-[68px] items-center gap-3 border-b border-edge px-6">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden h-dvh w-64 min-h-0 flex-col overflow-hidden border-r border-edge bg-surface/45 lg:flex">
+      <Link to="/" className="flex h-[68px] shrink-0 items-center gap-3 border-b border-edge px-6">
         <span className="flex size-8 items-center justify-center rounded-lg border border-glow/30 bg-glow-soft text-glow">
           <Command className="size-4" />
         </span>
@@ -95,7 +95,7 @@ function DesktopSidebar({ pathname }: { pathname: string }) {
         </span>
       </Link>
 
-      <div className="flex-1 px-3 py-5">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-5">
         <div className="mb-3 px-3 text-[9px] font-mono uppercase tracking-[0.22em] text-muted">
           Workspace
         </div>
@@ -141,7 +141,7 @@ function DesktopSidebar({ pathname }: { pathname: string }) {
         </Link>
       </div>
 
-      <div className="border-t border-edge p-4">
+      <div className="shrink-0 border-t border-edge p-4">
         <div className="rounded-lg border border-edge bg-void/60 p-3">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted">
@@ -171,6 +171,7 @@ function DesktopNavItem({
   return (
     <Link
       to={to}
+      aria-current={active ? "page" : undefined}
       className={`flex h-10 items-center gap-3 rounded-lg px-3 text-xs transition-colors ${
         active
           ? "border border-glow/25 bg-glow-soft text-foreground"
@@ -221,7 +222,11 @@ function MobileNavItem({
   active: boolean;
 }) {
   return (
-    <Link to={to} className="flex flex-col items-center gap-1">
+    <Link
+      to={to}
+      aria-current={active ? "page" : undefined}
+      className="flex flex-col items-center gap-1"
+    >
       <span
         className={`mb-1 size-1 rounded-full ${active ? "bg-glow shadow-[var(--shadow-glow-soft)]" : "bg-transparent"}`}
       />
