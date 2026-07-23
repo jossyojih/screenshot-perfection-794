@@ -10,10 +10,31 @@ import {
   TerminalSquare,
   LogOut,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "./NotificationBell";
 import { useAuth } from "@/lib/auth";
+
+type NavRoute = "/" | "/projects" | "/logs" | "/archived" | "/maintenance";
+
+const NAV_ITEMS: {
+  to: NavRoute;
+  label: string;
+  mobileLabel: string;
+  icon: LucideIcon;
+  exact?: boolean;
+}[] = [
+  { to: "/", label: "Overview", mobileLabel: "FEED", icon: LayoutDashboard, exact: true },
+  { to: "/archived", label: "Archived threads", mobileLabel: "ARCH", icon: Archive },
+  { to: "/projects", label: "Projects", mobileLabel: "PROJ", icon: FolderKanban },
+  { to: "/logs", label: "Agent logs", mobileLabel: "LOGS", icon: TerminalSquare },
+  { to: "/maintenance", label: "Storage", mobileLabel: "STORAGE", icon: HardDrive },
+];
+
+function isNavItemActive(pathname: string, item: (typeof NAV_ITEMS)[number]) {
+  return item.exact ? pathname === item.to : pathname.startsWith(item.to);
+}
 
 export function AppShell({
   children,
@@ -100,36 +121,18 @@ function DesktopSidebar({ pathname }: { pathname: string }) {
           Workspace
         </div>
         <nav className="space-y-1">
-          <DesktopNavItem
-            to="/"
-            label="Overview"
-            icon={<LayoutDashboard className="size-4" />}
-            active={pathname === "/"}
-          />
-          <DesktopNavItem
-            to="/archived"
-            label="Archived threads"
-            icon={<Archive className="size-4" />}
-            active={pathname.startsWith("/archived")}
-          />
-          <DesktopNavItem
-            to="/projects"
-            label="Projects"
-            icon={<FolderKanban className="size-4" />}
-            active={pathname.startsWith("/projects")}
-          />
-          <DesktopNavItem
-            to="/logs"
-            label="Agent logs"
-            icon={<TerminalSquare className="size-4" />}
-            active={pathname.startsWith("/logs")}
-          />
-          <DesktopNavItem
-            to="/maintenance"
-            label="Storage"
-            icon={<HardDrive className="size-4" />}
-            active={pathname.startsWith("/maintenance")}
-          />
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <DesktopNavItem
+                key={item.to}
+                to={item.to}
+                label={item.label}
+                icon={<Icon className="size-4" />}
+                active={isNavItemActive(pathname, item)}
+              />
+            );
+          })}
         </nav>
 
         <Link
@@ -163,7 +166,7 @@ function DesktopNavItem({
   icon,
   active,
 }: {
-  to: "/" | "/projects" | "/logs" | "/archived" | "/maintenance";
+  to: NavRoute;
   label: string;
   icon: ReactNode;
   active: boolean;
@@ -197,16 +200,16 @@ function MobileBottomBar({ pathname }: { pathname: string }) {
         <Plus className="size-5" />
       </Link>
 
-      <nav className="flex justify-around">
-        <MobileNavItem to="/" label="FEED" active={pathname === "/"} />
-        <MobileNavItem to="/projects" label="PROJ" active={pathname.startsWith("/projects")} />
-        <MobileNavItem to="/logs" label="LOGS" active={pathname.startsWith("/logs")} />
-        <MobileNavItem to="/archived" label="ARCH" active={pathname.startsWith("/archived")} />
-        <MobileNavItem
-          to="/maintenance"
-          label="STORE"
-          active={pathname.startsWith("/maintenance")}
-        />
+      <nav className="grid grid-cols-5">
+        {NAV_ITEMS.map((item) => (
+          <MobileNavItem
+            key={item.to}
+            to={item.to}
+            label={item.mobileLabel}
+            accessibleLabel={item.label}
+            active={isNavItemActive(pathname, item)}
+          />
+        ))}
       </nav>
     </div>
   );
@@ -215,17 +218,20 @@ function MobileBottomBar({ pathname }: { pathname: string }) {
 function MobileNavItem({
   to,
   label,
+  accessibleLabel,
   active,
 }: {
-  to: "/" | "/projects" | "/logs" | "/archived" | "/maintenance";
+  to: NavRoute;
   label: string;
+  accessibleLabel: string;
   active: boolean;
 }) {
   return (
     <Link
       to={to}
+      aria-label={accessibleLabel}
       aria-current={active ? "page" : undefined}
-      className="flex flex-col items-center gap-1"
+      className="flex min-w-0 flex-col items-center gap-1"
     >
       <span
         className={`mb-1 size-1 rounded-full ${active ? "bg-glow shadow-[var(--shadow-glow-soft)]" : "bg-transparent"}`}
