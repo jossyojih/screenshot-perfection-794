@@ -2,6 +2,7 @@ import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-ro
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, FolderGit2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { CreateProjectDialog } from "@/components/CreateProjectDialog";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { getJobs, getProjects, projectRepositories } from "@/lib/api";
 import { groupJobsByThread } from "@/lib/threads";
@@ -25,13 +26,16 @@ function ProjectsList() {
   return (
     <AppShell title="Projects">
       <div className="mx-auto max-w-[1440px] px-4 py-5 lg:px-8 lg:py-8">
-        <div className="mb-6">
-          <h2 className="text-[11px] font-mono uppercase tracking-widest text-muted">
-            All_Projects
-          </h2>
-          <p className="mt-2 hidden text-sm text-muted lg:block">
-            Each project can coordinate work across one or many repositories.
-          </p>
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-[11px] font-mono uppercase tracking-widest text-muted">
+              All_Projects
+            </h2>
+            <p className="mt-2 hidden text-sm text-muted lg:block">
+              Each project can coordinate work across one or many repositories.
+            </p>
+          </div>
+          <CreateProjectDialog />
         </div>
         {projects.isPending ? (
           <LoadingState />

@@ -263,6 +263,53 @@ export async function loginRequest(credentials: LoginCredentials) {
   return { accessToken, expiresAt };
 }
 
+export interface CreateProjectInput {
+  name: string;
+  description?: string;
+  defaultAgent?: Agent;
+  defaultModel?: string;
+  promotionPolicy?: PromotionPolicy;
+  repositoryUrls?: Array<{ url: string; name?: string }>;
+}
+export interface AddRepositoryInput {
+  url: string;
+  name?: string;
+}
+export interface AddRepositoryResult {
+  id: string;
+  projectId: string;
+  name: string;
+  path: string;
+  remoteName: string;
+  targetBranch: string;
+  normalizedUrl: string;
+  createdAt: string;
+  status: string;
+}
+export async function createProject(input: CreateProjectInput) {
+  return objectPayload<Project>(
+    await request<unknown>("/projects", { method: "POST", body: JSON.stringify(input) }),
+    ["project", "data"],
+  );
+}
+export async function updateProject(id: string, input: { name?: string; description?: string }) {
+  return objectPayload<Project>(
+    await request<unknown>(`/projects/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+    ["project", "data"],
+  );
+}
+export async function addRepository(projectId: string, input: AddRepositoryInput) {
+  return objectPayload<AddRepositoryResult>(
+    await request<unknown>(`/projects/${encodeURIComponent(projectId)}/repositories`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+    ["repository", "data"],
+  );
+}
 export async function getProjects() {
   return arrayPayload<Project>(await request<unknown>("/projects"), ["projects", "data"]);
 }

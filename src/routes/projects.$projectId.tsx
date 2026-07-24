@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { GitBranch, Plus, Search, TriangleAlert } from "lucide-react";
+import { AddRepositoryDialog } from "@/components/AddRepositoryDialog";
 import { AppShell } from "@/components/AppShell";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
@@ -299,7 +300,10 @@ function ProjectDetail() {
             )}
           </section>
           <section>
-            <Heading title="Repositories" meta={`${repos.length} connected`} />
+            <div className="mb-3 flex items-center justify-between">
+              <Heading title="Repositories" meta={`${repos.length} connected`} />
+              <AddRepositoryDialog projectId={p.id} />
+            </div>
             {repos.length === 0 ? (
               <DataState title="No repositories are connected to this project." />
             ) : (
