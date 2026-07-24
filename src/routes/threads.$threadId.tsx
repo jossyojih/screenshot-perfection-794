@@ -4,12 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   ChevronDown,
+  FileImage,
   GitCommitHorizontal,
   LoaderCircle,
   MoreHorizontal,
   SendHorizontal,
   SlidersHorizontal,
   TriangleAlert,
+  X,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { ArchiveThreadButton } from "@/components/ArchiveThreadButton";
@@ -257,6 +259,22 @@ function ThreadPage() {
       scopeDecisionSubmitting.current = false;
     },
   });
+  const changes = useQuery({
+    queryKey: ["job-changes", threadId],
+    queryFn: () => getJobChanges(threadId),
+    enabled: job.data?.status === "done",
+  });
+  const deployments = useQuery({
+    queryKey: ["job-deployments", threadId],
+    queryFn: () => getJobDeployments(threadId),
+    enabled: Boolean(changes.data?.promotion),
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((deployment) =>
+        ["queued", "deploying"].includes(deployment.status),
+      )
+        ? 2_000
+        : false,
+  });
   const submitScopeDecision = (decision: "approve" | "reject" | "choose", ids?: string[]) => {
     if (scopeDecisionSubmitting.current || scopeDecision.isPending) return;
     scopeDecisionSubmitting.current = true;
@@ -385,6 +403,39 @@ function ThreadPage() {
     }
     void navigate({ to: "/" });
   };
+  const getReviewStatus = () => {
+    if (!changes.data) return null;
+    const reviewableRepositories = changes.data.repositories.filter(
+      (repo) => repo.hasChanges && repo.effectivePromotionPolicy === "review_required",
+    );
+    const promoted =
+      Boolean(changes.data.promotion?.repositories.length) &&
+      changes.data.promotion!.repositories.every((result) => result.status === "promoted");
+    const failed =
+      changes.data.promotion?.repositories.filter((repo) => repo.status === "failed") ?? [];
+    const deploying = (deployments.data ?? []).some((d) =>
+      ["queued", "deploying"].includes(d.status),
+    );
+    const deployFailed = (deployments.data ?? []).some((d) =>
+      ["failed", "rolled_back"].includes(d.status),
+    );
+    const deploySucceeded =
+      (deployments.data ?? []).every((d) => d.status === "succeeded") &&
+      (deployments.data?.length ?? 0) > 0;
+
+    if (!changes.data.hasChanges && !changes.data.promotion)
+      return { label: "No changes", needsAction: false };
+    if (failed.length > 0) return { label: "Push failed", needsAction: true };
+    if (reviewableRepositories.length > 0 && !promoted)
+      return { label: "Review changes", needsAction: true };
+    if (changes.isPending) return { label: "Checking…", needsAction: false };
+    if (deploying) return { label: "Deploying", needsAction: false };
+    if (deployFailed) return { label: "Deployment failed", needsAction: false };
+    if (deploySucceeded) return { label: "Deployed", needsAction: false };
+    if (promoted) return { label: "Pushed", needsAction: false };
+    return { label: "Review changes", needsAction: false };
+  };
+  const reviewStatus = j.status === "done" ? getReviewStatus() : null;
   const finalResponse = (j.finalResponse || j.status === "done") && (
     <section className="mr-auto w-[96%] rounded-lg border border-edge bg-surface p-4 sm:w-[92%]">
       <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-glow">
@@ -402,6 +453,32 @@ function ThreadPage() {
       status={j.status}
       headerRight={
         <div className="flex items-center gap-2">
+          {reviewStatus && (
+            <button
+              type="button"
+              onClick={() => {
+                setThreadDetailsOpen(true);
+                setTimeout(() => {
+                  document
+                    .querySelector('[aria-label="Review changes section"]')
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 100);
+              }}
+              className={`relative flex min-h-9 items-center gap-1.5 rounded-md border px-2.5 text-[10px] font-mono uppercase tracking-wide transition-colors ${
+                reviewStatus.needsAction
+                  ? "border-glow/60 bg-glow-soft text-glow hover:border-glow"
+                  : "border-edge bg-void/40 text-muted hover:text-foreground"
+              }`}
+              title="Jump to review changes section"
+              aria-label="Jump to review changes section"
+            >
+              {reviewStatus.needsAction && (
+                <span className="absolute -right-1 -top-1 size-2 animate-pulse rounded-full bg-glow" />
+              )}
+              <GitCommitHorizontal className="size-3.5" aria-hidden="true" />
+              <span className="hidden sm:inline">{reviewStatus.label}</span>
+            </button>
+          )}
           <ArchiveThreadButton
             threadId={j.id}
             active={active}
@@ -713,7 +790,11 @@ function ThreadPage() {
             {streamError}
           </div>
         )}
-        {threadDetailsOpen && j.status === "done" && <ReviewChanges jobId={j.id} />}
+        {threadDetailsOpen && j.status === "done" && (
+          <div aria-label="Review changes section">
+            <ReviewChanges jobId={j.id} />
+          </div>
+        )}
         {(threadDetailsOpen || active) && (
           <section className="overflow-hidden rounded-xl border border-edge bg-surface/40">
             <h2>
@@ -930,12 +1011,6 @@ function ThreadPage() {
               <label htmlFor="follow-up-prompt" className="sr-only">
                 Follow-up instruction
               </label>
-              <div className="border-b border-edge px-3 py-2">
-                <AttachmentUpload
-                  onAttachmentsChange={setFollowUpAttachments}
-                  disabled={sendFollowUp.isPending}
-                />
-              </div>
               <div className="relative">
                 <textarea
                   ref={followUpInputRef}
@@ -950,17 +1025,24 @@ function ThreadPage() {
                   className="block min-h-[72px] max-h-[152px] w-full min-w-0 max-w-full resize-none overflow-y-hidden rounded-none border-0 bg-void px-3 pb-12 pt-2 text-base leading-6 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
                 />
                 <div className="absolute inset-x-2 bottom-1 flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    aria-label="Conversation options"
-                    title={`${j.agent} · ${followUpModel ?? j.model} · ${selectedScopeSummary}`}
-                    aria-expanded={followUpSettingsOpen}
-                    aria-controls="follow-up-settings"
-                    onClick={() => setFollowUpSettingsOpen((open) => !open)}
-                    className={`flex size-9 items-center justify-center rounded-md border transition-colors duration-200 ${followUpSettingsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge bg-surface text-muted"}`}
-                  >
-                    <SlidersHorizontal className="size-4" aria-hidden="true" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <AttachmentUpload
+                      onAttachmentsChange={setFollowUpAttachments}
+                      disabled={sendFollowUp.isPending}
+                      compact
+                    />
+                    <button
+                      type="button"
+                      aria-label="Conversation options"
+                      title={`${j.agent} · ${followUpModel ?? j.model} · ${selectedScopeSummary}`}
+                      aria-expanded={followUpSettingsOpen}
+                      aria-controls="follow-up-settings"
+                      onClick={() => setFollowUpSettingsOpen((open) => !open)}
+                      className={`flex size-9 items-center justify-center rounded-md border transition-colors duration-200 ${followUpSettingsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge bg-surface text-muted"}`}
+                    >
+                      <SlidersHorizontal className="size-4" aria-hidden="true" />
+                    </button>
+                  </div>
                   <button
                     type="submit"
                     title="Send follow-up"
@@ -985,6 +1067,41 @@ function ThreadPage() {
                 {sendFollowUp.isPending ? "Sending follow-up instruction" : ""}
               </span>
             </form>
+            {followUpAttachments.length > 0 && (
+              <div className="mx-auto max-w-[1100px] min-w-0 border-t border-edge px-3 py-2">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {followUpAttachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      className="relative flex items-center gap-2 rounded-lg border border-edge bg-surface p-2"
+                    >
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded bg-void/40">
+                        <FileImage className="size-4 text-muted" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-xs font-medium">{attachment.filename}</div>
+                        <div className="text-[10px] text-muted">
+                          {(attachment.sizeBytes / 1024).toFixed(1)}KB
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFollowUpAttachments((current) =>
+                            current.filter((a) => a.id !== attachment.id),
+                          )
+                        }
+                        className="shrink-0 rounded p-1 hover:bg-surface/50"
+                        disabled={sendFollowUp.isPending}
+                        aria-label={`Remove ${attachment.filename}`}
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
         )}
       </Page>

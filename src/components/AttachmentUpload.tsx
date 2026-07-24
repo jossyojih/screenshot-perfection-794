@@ -5,6 +5,7 @@ import { uploadAttachments, type AttachmentMetadata } from "@/lib/api";
 interface AttachmentUploadProps {
   onAttachmentsChange: (attachments: AttachmentMetadata[]) => void;
   disabled?: boolean;
+  compact?: boolean;
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -39,7 +40,11 @@ interface PendingAttachment extends AttachmentMetadata {
   error?: string;
 }
 
-export function AttachmentUpload({ onAttachmentsChange, disabled }: AttachmentUploadProps) {
+export function AttachmentUpload({
+  onAttachmentsChange,
+  disabled,
+  compact = false,
+}: AttachmentUploadProps) {
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [error, setError] = useState<string>();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -146,8 +151,11 @@ export function AttachmentUpload({ onAttachmentsChange, disabled }: AttachmentUp
     setError(undefined);
   };
 
+  const uploadingCount = attachments.filter((a) => a.uploading).length;
+  const successCount = attachments.filter((a) => !a.uploading && !a.error).length;
+
   return (
-    <div className="space-y-2">
+    <div className={compact ? "" : "space-y-2"}>
       <div className="flex flex-wrap items-center gap-2">
         <input
           ref={fileInputRef}
@@ -158,26 +166,49 @@ export function AttachmentUpload({ onAttachmentsChange, disabled }: AttachmentUp
           className="hidden"
           disabled={disabled}
         />
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={disabled || attachments.length >= MAX_FILES}
-          className="flex items-center gap-2 rounded-lg border border-edge bg-surface px-3 py-2 text-xs hover:bg-surface/50 disabled:opacity-50"
-        >
-          <Paperclip className="size-4" />
-          <span className="hidden sm:inline">Attach files</span>
-          <span className="sm:hidden">Attach</span>
-        </button>
-        <span className="text-xs text-muted">
-          {attachments.length}/{MAX_FILES}
-        </span>
+        {compact ? (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled || attachments.length >= MAX_FILES}
+            title="Attach files"
+            aria-label="Attach files"
+            className="relative flex size-9 shrink-0 items-center justify-center rounded-md border border-edge bg-surface text-muted transition-colors duration-200 hover:text-foreground disabled:opacity-50"
+          >
+            <Paperclip className="size-4" aria-hidden="true" />
+            {successCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full border border-void bg-glow text-[10px] font-mono font-semibold text-void">
+                {successCount}
+              </span>
+            )}
+            {uploadingCount > 0 && (
+              <span className="absolute -right-1 -top-1 size-2 animate-pulse rounded-full bg-glow" />
+            )}
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled || attachments.length >= MAX_FILES}
+              className="flex items-center gap-2 rounded-lg border border-edge bg-surface px-3 py-2 text-xs hover:bg-surface/50 disabled:opacity-50"
+            >
+              <Paperclip className="size-4" />
+              <span className="hidden sm:inline">Attach files</span>
+              <span className="sm:hidden">Attach</span>
+            </button>
+            <span className="text-xs text-muted">
+              {attachments.length}/{MAX_FILES}
+            </span>
+          </>
+        )}
       </div>
-      {error && (
+      {!compact && error && (
         <div className="rounded-lg border border-alert/40 bg-alert-soft p-2 text-xs text-alert">
           {error}
         </div>
       )}
-      {attachments.length > 0 && (
+      {!compact && attachments.length > 0 && (
         <div className="grid gap-2 sm:grid-cols-2">
           {attachments.map((attachment) => (
             <div
