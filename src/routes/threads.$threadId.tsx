@@ -885,7 +885,7 @@ function ThreadPage() {
               <div
                 id="follow-up-settings"
                 aria-hidden={!followUpSettingsOpen}
-                className={`absolute inset-x-0 bottom-full left-1/2 max-h-[65vh] w-full max-w-[1100px] min-w-0 -translate-x-1/2 overflow-y-auto border-y border-edge bg-void p-4 shadow-2xl transition-all duration-200 ease-out lg:px-8 ${followUpSettingsOpen ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}
+                className={`absolute inset-x-0 bottom-full left-1/2 z-50 max-h-[65vh] w-full max-w-[1100px] min-w-0 -translate-x-1/2 overflow-y-auto border-y border-edge bg-void p-4 shadow-2xl transition-all duration-200 ease-out lg:px-8 ${followUpSettingsOpen ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}
               >
                 <div className="mx-auto max-w-[1100px]">
                   <div className="mb-4">
@@ -1029,7 +1029,7 @@ function ThreadPage() {
                     placeholder="Ask a follow-up…"
                     className="block min-h-[72px] max-h-[152px] w-full min-w-0 resize-none overflow-y-hidden overflow-x-hidden rounded-none border-0 bg-void pl-2 pr-16 pb-12 pt-2 text-base leading-6 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
                   />
-                  <div className="absolute inset-x-2 bottom-1 flex items-center justify-between gap-2 sm:gap-3">
+                  <div className="absolute inset-x-2 bottom-1 z-10 flex items-center justify-between gap-2 sm:gap-3">
                     <div className="flex items-center gap-2 sm:gap-3">
                       <AttachmentUpload
                         onAttachmentsChange={setFollowUpAttachments}
