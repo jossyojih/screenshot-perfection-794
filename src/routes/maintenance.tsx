@@ -61,6 +61,7 @@ interface CleanupPreview {
   classifiedWorktreeCount: number;
   eligible: Array<WorktreeSummary & { estimatedBytes: number }>;
   protectedWorktrees: WorktreeSummary[];
+  generatedAt?: string;
 }
 
 interface CleanupHistory {
@@ -68,7 +69,7 @@ interface CleanupHistory {
   failed: Array<WorktreeSummary & { errorCode: string; failedAt: string }>;
 }
 
-const MAINTENANCE_REQUEST_TIMEOUT_MS = 15_000;
+const MAINTENANCE_REQUEST_TIMEOUT_MS = 20_000;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const timeoutSignal = AbortSignal.timeout(MAINTENANCE_REQUEST_TIMEOUT_MS);
@@ -120,22 +121,35 @@ const formatDate = (value?: string) =>
 function MaintenancePage() {
   const queryClient = useQueryClient();
   const submitting = useRef(false);
+  const previewSubmitting = useRef(false);
   const status = useQuery({
     queryKey: ["maintenance", "status"],
     queryFn: ({ signal }) => request<MaintenanceStatus>("/maintenance/status", { signal }),
     refetchInterval: (query) => (query.state.data?.isRunning ? 2_000 : 10_000),
-    retry: 1,
+    retry: 0,
   });
   const preview = useQuery({
     queryKey: ["maintenance", "preview"],
     queryFn: ({ signal }) => request<CleanupPreview>("/maintenance/preview", { signal }),
-    enabled: !status.data?.isRunning,
-    retry: 1,
+    retry: 0,
   });
   const history = useQuery({
     queryKey: ["maintenance", "history"],
     queryFn: ({ signal }) => request<CleanupHistory>("/maintenance/history", { signal }),
-    retry: 1,
+    retry: 0,
+  });
+  const freshPreview = useMutation({
+    mutationFn: () => request<CleanupPreview>("/maintenance/preview", { method: "POST" }),
+    onMutate: () => {
+      previewSubmitting.current = true;
+    },
+    onSuccess: (result) => {
+      queryClient.setQueryData(["maintenance", "preview"], result);
+      void queryClient.invalidateQueries({ queryKey: ["maintenance", "status"] });
+    },
+    onSettled: () => {
+      previewSubmitting.current = false;
+    },
   });
   const cleanup = useMutation({
     mutationFn: () => request<{ started: true }>("/maintenance/cleanup", { method: "POST" }),
@@ -157,6 +171,10 @@ function MaintenancePage() {
     )
       return;
     cleanup.mutate();
+  };
+  const runPreview = () => {
+    if (previewSubmitting.current || freshPreview.isPending || running) return;
+    freshPreview.mutate();
   };
 
   if (status.isPending) {
@@ -245,14 +263,18 @@ function MaintenancePage() {
           <Metric
             icon={<Trash2 />}
             label="Eligible worktrees"
-            value={String(eligible.length)}
-            detail={formatBytes(eligible.reduce((sum, item) => sum + item.estimatedBytes, 0))}
+            value={preview.data?.generatedAt ? String(eligible.length) : "—"}
+            detail={
+              preview.data?.generatedAt
+                ? formatBytes(eligible.reduce((sum, item) => sum + item.estimatedBytes, 0))
+                : "No cached preview"
+            }
           />
           <Metric
             icon={<ShieldCheck />}
             label="Protected worktrees"
-            value={String(protectedWorktrees.length)}
-            detail="Every item has a reason"
+            value={preview.data?.generatedAt ? String(protectedWorktrees.length) : "—"}
+            detail={preview.data?.generatedAt ? "Every item has a reason" : "No cached preview"}
           />
           <Metric
             icon={<Archive />}
@@ -298,16 +320,16 @@ function MaintenancePage() {
           <div className="mt-5 flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
-              onClick={() => preview.refetch()}
-              disabled={preview.isFetching || running}
+              onClick={runPreview}
+              disabled={freshPreview.isPending || running}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-edge px-4 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {preview.isFetching ? (
+              {freshPreview.isPending ? (
                 <LoaderCircle className="size-4 animate-spin" />
               ) : (
                 <Eye className="size-4" />
               )}
-              Preview cleanup
+              {freshPreview.isPending ? "Previewing…" : "Preview cleanup"}
             </button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -347,6 +369,22 @@ function MaintenancePage() {
               </AlertDialogContent>
             </AlertDialog>
           </div>
+          <p className="mt-3 text-xs text-muted">
+            Displayed preview generated {formatDate(preview.data?.generatedAt)}.
+          </p>
+          {freshPreview.isError && (
+            <div role="alert" className="mt-3 text-sm text-danger">
+              <p>{freshPreview.error.message}</p>
+              <button
+                type="button"
+                onClick={runPreview}
+                disabled={freshPreview.isPending}
+                className="mt-2 rounded-md border border-danger/50 px-3 py-2 text-xs disabled:opacity-50"
+              >
+                Retry
+              </button>
+            </div>
+          )}
           {cleanup.isError && (
             <p role="alert" className="mt-3 text-sm text-danger">
               {cleanup.error.message}
@@ -481,6 +519,8 @@ function WorktreeList({
           <LoadingState label={`Loading ${title.toLowerCase()}…`} />
         ) : query.isError ? (
           <ErrorState error={query.error} retry={() => query.refetch()} />
+        ) : !query.data?.generatedAt ? (
+          <DataState title="No cached preview yet. Press Preview cleanup to generate one." />
         ) : items.length === 0 ? (
           <DataState title={`No ${title.toLowerCase()}.`} />
         ) : (
