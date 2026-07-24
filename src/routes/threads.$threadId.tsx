@@ -437,11 +437,11 @@ function ThreadPage() {
   };
   const reviewStatus = j.status === "done" ? getReviewStatus() : null;
   const finalResponse = (j.finalResponse || j.status === "done") && (
-    <section className="mr-auto w-[96%] rounded-lg border border-edge bg-surface p-4 sm:w-[92%]">
-      <h2 className="mb-2 text-[10px] font-mono uppercase tracking-widest text-glow">
+    <section className="mr-auto w-[96%] rounded-lg border border-edge bg-surface p-2 sm:w-[92%] sm:p-4">
+      <h2 className="mb-1.5 text-[9px] font-mono uppercase tracking-widest text-glow sm:mb-2 sm:text-[10px]">
         Final response
       </h2>
-      <div className="whitespace-pre-wrap text-sm leading-relaxed">
+      <div className="whitespace-pre-wrap text-xs leading-relaxed sm:text-sm">
         {j.finalResponse ?? "Job completed without a final response."}
       </div>
     </section>
@@ -495,23 +495,23 @@ function ThreadPage() {
       }
     >
       <Page bottomClearance={canContinue ? composerHeight : 0}>
-        <section className="ml-auto w-[96%] rounded-lg border border-edge bg-surface/50 p-3 sm:w-[92%] lg:p-4">
-          <div className="flex flex-wrap items-center gap-2">
+        <section className="ml-auto w-[96%] rounded-lg border border-edge bg-surface/50 p-2 sm:w-[92%] sm:p-3 lg:p-4">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <StatusDot status={j.status} />
             <StatusPill status={j.status} />
-            <span className="text-[10px] font-mono text-muted">
+            <span className="text-[9px] font-mono text-muted sm:text-[10px]">
               · {j.agent} · {j.model}
               {j.reasoningLevel && ` · ${j.reasoningLevel}`}
             </span>
-            <span className="rounded border border-glow/30 bg-glow-soft px-2 py-1 text-[9px] font-mono uppercase text-glow">
+            <span className="rounded border border-glow/30 bg-glow-soft px-1.5 py-0.5 text-[8px] font-mono uppercase text-glow sm:px-2 sm:py-1 sm:text-[9px]">
               {j.scopeMode ?? "manual"} scope
             </span>
-            <span className="ml-auto text-[9px] font-mono text-muted">
+            <span className="ml-auto text-[8px] font-mono text-muted sm:text-[9px]">
               updated {formatTime(j.updatedAt ?? j.createdAt)}
             </span>
           </div>
-          <div className="mt-2 flex items-start gap-3">
-            <h1 className="min-w-0 flex-1 text-base font-semibold leading-tight lg:text-xl">
+          <div className="mt-1.5 flex items-start gap-2 sm:mt-2 sm:gap-3">
+            <h1 className="min-w-0 flex-1 text-sm font-semibold leading-tight sm:text-base lg:text-xl">
               {currentRunTitle}
             </h1>
             {hasThreadDetails && (
@@ -521,18 +521,20 @@ function ThreadPage() {
                 title={threadDetailsOpen ? "Hide thread details" : "Thread details"}
                 aria-expanded={threadDetailsOpen}
                 onClick={() => setThreadDetailsOpen((open) => !open)}
-                className={`flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-md border px-2.5 text-[10px] font-mono uppercase tracking-wide transition-colors ${threadDetailsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge bg-void/40 text-muted hover:text-foreground"}`}
+                className={`flex h-7 shrink-0 items-center justify-center gap-1 rounded-md border px-1.5 text-[9px] font-mono uppercase tracking-wide transition-colors sm:h-9 sm:gap-1.5 sm:px-2.5 sm:text-[10px] ${threadDetailsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge bg-void/40 text-muted hover:text-foreground"}`}
               >
-                <MoreHorizontal className="size-4" aria-hidden="true" />
-                <span>Details</span>
+                <MoreHorizontal className="size-3.5 sm:size-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Details</span>
                 <ChevronDown
-                  className={`size-3 transition-transform ${threadDetailsOpen ? "rotate-180" : ""}`}
+                  className={`size-2.5 transition-transform sm:size-3 ${threadDetailsOpen ? "rotate-180" : ""}`}
                   aria-hidden="true"
                 />
               </button>
             )}
           </div>
-          {showOriginalRequest && <RequestPanel prompt={j.prompt} compact className="mt-3" />}
+          {showOriginalRequest && (
+            <RequestPanel prompt={j.prompt} compact className="mt-2 sm:mt-3" />
+          )}
         </section>
         {finalResponse}
         {threadDetailsOpen && Boolean(j.threadRepositoryPermissions?.length) && (
@@ -656,18 +658,20 @@ function ThreadPage() {
           </section>
         )}
         {(j.status === "queued" || j.status === "running") && (
-          <section className="rounded-lg border border-glow/30 bg-glow-soft p-4">
-            <div className="flex items-center justify-between gap-3">
+          <section className="rounded-lg border border-glow/30 bg-glow-soft p-2 sm:p-4">
+            <div className="flex items-center justify-between gap-2 sm:gap-3">
               <div>
-                <div className="text-[10px] font-mono uppercase tracking-widest text-glow">
+                <div className="text-[9px] font-mono uppercase tracking-widest text-glow sm:text-[10px]">
                   Agent is working
                 </div>
-                <p className="mt-1 text-xs text-muted">Live events will appear below.</p>
+                <p className="mt-0.5 text-[11px] text-muted sm:mt-1 sm:text-xs">
+                  Live events will appear below.
+                </p>
               </div>
               <button
                 onClick={() => cancel.mutate()}
                 disabled={cancel.isPending}
-                className="rounded-md border border-danger/50 px-3 py-2 text-[10px] font-mono uppercase text-danger disabled:opacity-50"
+                className="rounded-md border border-danger/50 px-2 py-1.5 text-[9px] font-mono uppercase text-danger disabled:opacity-50 sm:px-3 sm:py-2 sm:text-[10px]"
               >
                 {cancel.isPending ? "Cancelling…" : "Cancel job"}
               </button>
@@ -675,8 +679,8 @@ function ThreadPage() {
           </section>
         )}
         {j.status === "needs_input" && (
-          <section className="rounded-lg border border-alert/40 bg-alert-soft p-4">
-            <div className="mb-2 text-[10px] font-mono uppercase tracking-widest text-alert">
+          <section className="rounded-lg border border-alert/40 bg-alert-soft p-2 sm:p-4">
+            <div className="mb-1.5 text-[9px] font-mono uppercase tracking-widest text-alert sm:mb-2 sm:text-[10px]">
               Needs input
             </div>
             {j.proposedRepositoryIds?.length ? (
@@ -1130,12 +1134,12 @@ function RequestPanel({
 
   return (
     <div
-      className={`${compact ? "rounded-md" : "rounded-lg"} border border-edge bg-void/60 p-3 lg:p-4 ${className}`}
+      className={`${compact ? "rounded-md" : "rounded-lg"} border border-edge bg-void/60 p-2 sm:p-3 lg:p-4 ${className}`}
     >
-      <div className="text-[9px] font-mono uppercase tracking-widest text-muted">
+      <div className="text-[8px] font-mono uppercase tracking-widest text-muted sm:text-[9px]">
         Original request
       </div>
-      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/90">
+      <p className="mt-1.5 whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90 sm:mt-2 sm:text-sm">
         {visibleRequest || "No request text was recorded."}
       </p>
       {isLong && (
@@ -1143,7 +1147,7 @@ function RequestPanel({
           type="button"
           aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}
-          className="mt-3 rounded-sm text-[10px] font-mono uppercase tracking-wider text-glow hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60"
+          className="mt-2 rounded-sm text-[9px] font-mono uppercase tracking-wider text-glow hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glow/60 sm:mt-3 sm:text-[10px]"
         >
           {expanded ? "Show less" : "Show more"}
         </button>
@@ -1672,7 +1676,7 @@ const Page = ({
   bottomClearance?: number;
 }) => (
   <div
-    className="mx-auto flex min-w-0 max-w-[1100px] flex-col gap-6 overflow-x-clip py-5 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:px-8 lg:py-8"
+    className="mx-auto flex min-w-0 max-w-[1100px] flex-col gap-3 overflow-x-clip py-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-6 sm:py-5 lg:px-8 lg:py-8"
     style={bottomClearance ? { paddingBottom: bottomClearance } : undefined}
   >
     {children}
