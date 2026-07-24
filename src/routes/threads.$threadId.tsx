@@ -879,7 +879,7 @@ function ThreadPage() {
           <section
             ref={composerRef}
             id="continue-conversation"
-            className="fixed inset-x-0 bottom-0 z-40 min-w-0 border-t border-glow/40 bg-void"
+            className="fixed inset-x-0 bottom-0 z-40 w-full min-w-0 overflow-hidden border-t border-glow/40 bg-void"
           >
             <div className="mx-auto max-w-[1100px]">
               <div
@@ -1007,7 +1007,7 @@ function ThreadPage() {
                 </div>
               </div>
               <form
-                className="mx-auto max-w-[1100px] min-w-0"
+                className="mx-auto w-full max-w-[1100px] min-w-0"
                 onSubmit={(event) => {
                   event.preventDefault();
                   submitFollowUp();
@@ -1016,7 +1016,7 @@ function ThreadPage() {
                 <label htmlFor="follow-up-prompt" className="sr-only">
                   Follow-up instruction
                 </label>
-                <div className="relative">
+                <div className="relative w-full min-w-0 overflow-hidden">
                   <textarea
                     ref={followUpInputRef}
                     id="follow-up-prompt"
@@ -1027,7 +1027,7 @@ function ThreadPage() {
                     }}
                     rows={1}
                     placeholder="Ask a follow-up…"
-                    className="block min-h-[72px] max-h-[152px] w-full min-w-0 max-w-full resize-none overflow-y-hidden rounded-none border-0 bg-void px-3 pb-12 pt-2 text-base leading-6 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
+                    className="block min-h-[72px] max-h-[152px] w-full min-w-0 resize-none overflow-y-hidden overflow-x-hidden rounded-none border-0 bg-void px-3 pb-12 pt-2 text-base leading-6 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
                   />
                   <div className="absolute inset-x-2 bottom-1 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
