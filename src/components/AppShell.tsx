@@ -21,13 +21,7 @@ import { NotificationBell } from "./NotificationBell";
 import { StatusDot, StatusPill } from "./StatusPill";
 import { useAuth } from "@/lib/auth";
 import type { JobStatus } from "@/lib/api";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "./ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 
 type NavRoute = "/" | "/search" | "/projects" | "/logs" | "/archived" | "/maintenance" | "/duna";
 
@@ -85,8 +79,14 @@ export function AppShell({
                     <Menu className="size-5" />
                   </button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-64 bg-surface/95 backdrop-blur-xl border-edge p-0">
-                  <MobileMenuContent pathname={pathname} onNavigate={() => setMobileMenuOpen(false)} />
+                <SheetContent
+                  side="left"
+                  className="w-64 bg-surface/95 backdrop-blur-xl border-edge p-0"
+                >
+                  <MobileMenuContent
+                    pathname={pathname}
+                    onNavigate={() => setMobileMenuOpen(false)}
+                  />
                 </SheetContent>
               </Sheet>
 
@@ -132,13 +132,15 @@ export function AppShell({
 
             <div className="flex shrink-0 items-center gap-2">
               {headerRight}
-              <NotificationBell />
-              <ThemeToggle />
+              <div className="hidden lg:flex lg:items-center lg:gap-2">
+                <NotificationBell />
+                <ThemeToggle />
+              </div>
               <button
                 onClick={logout}
                 aria-label="Sign out"
                 title="Sign out"
-                className="flex size-9 items-center justify-center rounded-md border border-edge text-muted hover:text-danger"
+                className="hidden lg:flex size-9 items-center justify-center rounded-md border border-edge text-muted hover:text-danger"
               >
                 <LogOut className="size-4" />
               </button>
@@ -146,9 +148,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className={`min-w-0 ${bottomBar === false ? "pb-0" : "pb-24"}`}>
-          {children}
-        </main>
+        <main className={`min-w-0 ${bottomBar === false ? "pb-0" : "pb-24"}`}>{children}</main>
 
         {bottomBar === false ? null : bottomBar ? (
           <div className="fixed inset-x-0 bottom-0 z-40 lg:left-64">{bottomBar}</div>
@@ -261,6 +261,8 @@ function MobileFloatingButton() {
 }
 
 function MobileMenuContent({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
+  const { logout } = useAuth();
+
   return (
     <div className="flex h-full flex-col">
       <SheetHeader className="border-b border-edge p-6 pb-4">
@@ -317,7 +319,24 @@ function MobileMenuContent({ pathname, onNavigate }: { pathname: string; onNavig
         </Link>
       </div>
 
-      <div className="shrink-0 border-t border-edge p-4">
+      <div className="shrink-0 border-t border-edge p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <ThemeToggle />
+          </div>
+          <button
+            onClick={() => {
+              logout();
+              onNavigate();
+            }}
+            className="flex items-center gap-2 rounded-md border border-edge px-3 py-2 text-xs text-muted hover:text-danger hover:border-danger/50 transition-colors"
+          >
+            <LogOut className="size-4" />
+            <span>Sign out</span>
+          </button>
+        </div>
+
         <div className="rounded-lg border border-edge bg-void/60 p-3">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted">
