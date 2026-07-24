@@ -1029,8 +1029,8 @@ function ThreadPage() {
                     placeholder="Ask a follow-up…"
                     className="block min-h-[72px] max-h-[152px] w-full min-w-0 resize-none overflow-y-hidden overflow-x-hidden rounded-none border-0 bg-void px-3 pb-12 pt-2 text-base leading-6 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
                   />
-                  <div className="absolute inset-x-2 bottom-1 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
+                  <div className="absolute inset-x-2 bottom-1 flex items-center justify-between gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <AttachmentUpload
                         onAttachmentsChange={setFollowUpAttachments}
                         disabled={sendFollowUp.isPending}
@@ -1043,7 +1043,7 @@ function ThreadPage() {
                         aria-expanded={followUpSettingsOpen}
                         aria-controls="follow-up-settings"
                         onClick={() => setFollowUpSettingsOpen((open) => !open)}
-                        className={`flex size-9 items-center justify-center rounded-md border transition-colors duration-200 ${followUpSettingsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge bg-surface text-muted"}`}
+                        className={`flex size-9 shrink-0 items-center justify-center rounded-md border transition-colors duration-200 ${followUpSettingsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge bg-surface text-muted"}`}
                       >
                         <SlidersHorizontal className="size-4" aria-hidden="true" />
                       </button>
@@ -1058,7 +1058,7 @@ function ThreadPage() {
                         (followUpScope === "manual" && followUpRepositories.length === 0)
                       }
                       aria-busy={sendFollowUp.isPending || followUpSubmitting.current}
-                      className="flex size-9 items-center justify-center rounded-md bg-foreground text-void transition-colors duration-200 disabled:cursor-not-allowed disabled:bg-edge"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-md bg-foreground text-void transition-colors duration-200 disabled:cursor-not-allowed disabled:bg-edge"
                     >
                       {sendFollowUp.isPending ? (
                         <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
