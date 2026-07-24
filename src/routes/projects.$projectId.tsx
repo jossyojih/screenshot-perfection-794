@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ChevronDown, GitBranch, Plus, Search, TriangleAlert } from "lucide-react";
 import { AddRepositoryDialog } from "@/components/AddRepositoryDialog";
+import { EditProjectDialog } from "@/components/EditProjectDialog";
 import { AppShell } from "@/components/AppShell";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
@@ -324,7 +325,10 @@ function ProjectDetail() {
           >
             <AccordionItem value="details" className="rounded-xl border border-edge bg-surface">
               <AccordionTrigger className="px-4 lg:px-5">
-                <Heading title="Project Details" meta={p.description ? "Configured" : ""} />
+                <div className="flex w-full items-center justify-between pr-3">
+                  <Heading title="Project Details" meta={p.description ? "Configured" : ""} />
+                  <EditProjectDialog project={p} />
+                </div>
               </AccordionTrigger>
               <AccordionContent className="px-4 lg:px-5">
                 {p.description && (
