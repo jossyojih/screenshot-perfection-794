@@ -329,6 +329,27 @@ export async function getConversation(id: string) {
     "data",
   ]);
 }
+export interface AttachmentMetadata {
+  id: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
+export async function uploadAttachments(files: File[]): Promise<AttachmentMetadata[]> {
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append("file", file);
+  }
+  const response = await authenticatedFetch("/attachments/upload", {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) throw await responseError(response);
+  const result = (await response.json()) as { attachments: AttachmentMetadata[] };
+  return result.attachments || [];
+}
+
 export async function createJob(
   input: Pick<
     Job,
@@ -339,7 +360,7 @@ export async function createJob(
     | "agent"
     | "model"
     | "reasoningLevel"
-  >,
+  > & { attachments?: AttachmentMetadata[] },
 ) {
   return objectPayload<Job>(
     await request<unknown>("/jobs", { method: "POST", body: JSON.stringify(input) }),
@@ -374,11 +395,12 @@ export async function continueJob(
   requestId: string,
   scope?: { scopeMode: "auto" | "manual"; requestedRepositoryIds?: string[] },
   selection?: { model?: string; reasoningLevel?: ReasoningLevel },
+  attachments?: AttachmentMetadata[],
 ) {
   return objectPayload<Job>(
     await request<unknown>(`/jobs/${encodeURIComponent(id)}/continue`, {
       method: "POST",
-      body: JSON.stringify({ message, requestId, ...scope, ...selection }),
+      body: JSON.stringify({ message, requestId, ...scope, ...selection, attachments }),
     }),
     ["job", "data"],
   );
