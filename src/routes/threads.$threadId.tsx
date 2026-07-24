@@ -747,7 +747,7 @@ function ThreadPage() {
           <section
             ref={composerRef}
             id="continue-conversation"
-            className="fixed inset-x-0 bottom-0 z-40 min-w-0 border-t border-glow/40 bg-void lg:left-64"
+            className="fixed inset-x-0 bottom-0 z-40 min-w-0 border-t border-glow/40 bg-void"
           >
             <div
               id="follow-up-settings"
