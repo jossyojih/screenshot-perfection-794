@@ -208,6 +208,7 @@ function ThreadPage() {
   const [expandedEarlierRun, setExpandedEarlierRun] = useState<string>();
   const [followUpRequestId, setFollowUpRequestId] = useState(() => crypto.randomUUID());
   const followUpSubmitting = useRef(false);
+  const scopeDecisionSubmitting = useRef(false);
   const followUpInputRef = useRef<HTMLTextAreaElement>(null);
   const composerRef = useRef<HTMLElement>(null);
   const [composerHeight, setComposerHeight] = useState(72);
@@ -249,7 +250,15 @@ function ThreadPage() {
     mutationFn: (input: { decision: "approve" | "reject" | "choose"; ids?: string[] }) =>
       decideJobScope(threadId, input.decision, input.ids),
     onSuccess: refresh,
+    onSettled: () => {
+      scopeDecisionSubmitting.current = false;
+    },
   });
+  const submitScopeDecision = (decision: "approve" | "reject" | "choose", ids?: string[]) => {
+    if (scopeDecisionSubmitting.current || scopeDecision.isPending) return;
+    scopeDecisionSubmitting.current = true;
+    scopeDecision.mutate({ decision, ids });
+  };
   const sendFollowUp = useMutation({
     mutationFn: (input: {
       prompt: string;
@@ -351,7 +360,11 @@ function ThreadPage() {
   };
   const activityId = `job-activity-${j.id}`;
   const hasThreadDetails =
-    earlierRuns.length > 0 || j.status === "done" || events.length > 0 || Boolean(j.usage);
+    earlierRuns.length > 0 ||
+    j.status === "done" ||
+    events.length > 0 ||
+    Boolean(j.usage) ||
+    Boolean(j.threadRepositoryPermissions?.length);
   const goBack = () => {
     if (window.history.length > 1) {
       window.history.back();
@@ -438,6 +451,33 @@ function ThreadPage() {
           {showOriginalRequest && <RequestPanel prompt={j.prompt} compact className="mt-3" />}
         </section>
         {finalResponse}
+        {threadDetailsOpen && Boolean(j.threadRepositoryPermissions?.length) && (
+          <section className="-order-1 rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
+            <h2 className="text-[10px] font-mono uppercase tracking-widest text-muted">
+              Conversation repository scope
+            </h2>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {j.threadRepositoryPermissions?.map((permission) => (
+                <div
+                  key={permission.repositoryId}
+                  className="rounded-md border border-edge bg-void/40 px-3 py-2 text-xs"
+                >
+                  <span className="font-medium">
+                    {repoNames.get(permission.repositoryId) ?? permission.repositoryId}
+                  </span>
+                  <span className="text-muted">
+                    {" — "}
+                    {permission.decision === "rejected"
+                      ? "not authorized for this conversation"
+                      : permission.inherited
+                        ? "approved earlier in this conversation"
+                        : "approved for this conversation"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         {threadDetailsOpen && earlierRuns.length > 0 && (
           <section className="-order-1 rounded-xl border border-edge bg-surface/40 p-4 lg:p-6">
             <button
@@ -564,18 +604,18 @@ function ThreadPage() {
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => scopeDecision.mutate({ decision: "approve" })}
+                    onClick={() => submitScopeDecision("approve")}
                     disabled={scopeDecision.isPending}
                     className="rounded-md bg-foreground px-4 py-2 text-[10px] font-mono uppercase text-void disabled:opacity-50"
                   >
-                    Approve suggested scope
+                    {scopeDecision.isPending ? "Approving…" : "Approve suggested scope"}
                   </button>
                   <button
-                    onClick={() => scopeDecision.mutate({ decision: "reject" })}
+                    onClick={() => submitScopeDecision("reject")}
                     disabled={scopeDecision.isPending}
                     className="rounded-md border border-edge px-4 py-2 text-[10px] font-mono uppercase disabled:opacity-50"
                   >
-                    Keep Current Scope
+                    {scopeDecision.isPending ? "Saving…" : "Keep Current Scope"}
                   </button>
                   <button
                     onClick={() => {

@@ -7,6 +7,11 @@ export interface ScopeReason {
   repositoryId: string;
   reason: string;
 }
+export interface ThreadRepositoryPermission {
+  repositoryId: string;
+  decision: "approved" | "rejected";
+  inherited: boolean;
+}
 export interface Repository {
   id: string;
   name: string;
@@ -53,6 +58,7 @@ export interface Job {
   resolvedRepositoryIds: string[];
   scopeReasons: ScopeReason[];
   proposedRepositoryIds?: string[];
+  threadRepositoryPermissions?: ThreadRepositoryPermission[];
   parentJobId?: string;
   threadId?: string;
   agent: Agent;
