@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { ChevronDown, GitBranch, Plus, Search, TriangleAlert } from "lucide-react";
+import { ChevronDown, ExternalLink, GitBranch, Plus, Search, TriangleAlert } from "lucide-react";
 import { AddRepositoryDialog } from "@/components/AddRepositoryDialog";
 import { EditProjectDialog } from "@/components/EditProjectDialog";
 import { AppShell } from "@/components/AppShell";
@@ -370,10 +370,25 @@ function ProjectDetail() {
                         <span className="flex size-9 items-center justify-center rounded-lg border border-glow/25 bg-glow-soft text-glow">
                           <GitBranch className="size-4" />
                         </span>
-                        <div className="mt-4 truncate text-sm font-medium">{r.name}</div>
-                        <div className="mt-1 text-[9px] font-mono text-muted">
-                          {r.defaultBranch ?? "default branch"}
-                          {r.status ? ` · ${r.status}` : ""}
+                        <div className="mt-4 flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-medium">{r.name}</div>
+                            <div className="mt-1 text-[9px] font-mono text-muted">
+                              {r.defaultBranch ?? "default branch"}
+                              {r.status ? ` · ${r.status}` : ""}
+                            </div>
+                          </div>
+                          {r.url && (
+                            <a
+                              href={r.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex size-7 shrink-0 items-center justify-center rounded-md border border-edge text-muted hover:border-glow hover:bg-glow-soft hover:text-glow"
+                              aria-label={`Open ${r.name} repository`}
+                            >
+                              <ExternalLink className="size-3.5" />
+                            </a>
+                          )}
                         </div>
                       </div>
                     ))}
