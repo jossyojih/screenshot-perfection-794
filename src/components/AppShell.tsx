@@ -10,7 +10,6 @@ import {
   Search,
   TerminalSquare,
   LogOut,
-  Waves,
   Menu,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -23,7 +22,7 @@ import { useAuth } from "@/lib/auth";
 import type { JobStatus } from "@/lib/api";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 
-type NavRoute = "/" | "/search" | "/projects" | "/logs" | "/archived" | "/maintenance" | "/duna";
+type NavRoute = "/" | "/search" | "/projects" | "/logs" | "/archived" | "/maintenance";
 
 const NAV_ITEMS: {
   to: NavRoute;
@@ -37,7 +36,6 @@ const NAV_ITEMS: {
   { to: "/archived", label: "Archived threads", mobileLabel: "ARCH", icon: Archive },
   { to: "/projects", label: "Projects", mobileLabel: "PROJ", icon: FolderKanban },
   { to: "/logs", label: "Agent logs", mobileLabel: "LOGS", icon: TerminalSquare },
-  { to: "/duna", label: "Duna", mobileLabel: "DUNA", icon: Waves },
   { to: "/maintenance", label: "Storage", mobileLabel: "STORAGE", icon: HardDrive },
 ];
 
@@ -180,7 +178,7 @@ function DesktopSidebar({ pathname }: { pathname: string }) {
           Workspace
         </div>
         <nav className="space-y-1">
-          {NAV_ITEMS.filter((item) => item.to !== "/duna").map((item) => {
+          {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             return (
               <DesktopNavItem
