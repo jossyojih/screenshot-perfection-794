@@ -1027,7 +1027,7 @@ function ThreadPage() {
                     }}
                     rows={1}
                     placeholder="Ask a follow-up…"
-                    className="block min-h-[72px] max-h-[152px] w-full min-w-0 resize-none overflow-y-hidden overflow-x-hidden rounded-none border-0 bg-void px-3 pb-12 pt-2 text-base leading-6 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
+                    className="block min-h-[72px] max-h-[152px] w-full min-w-0 resize-none overflow-y-hidden overflow-x-hidden rounded-none border-0 bg-void pl-3 pr-14 pb-12 pt-2 text-base leading-6 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
                   />
                   <div className="absolute inset-x-2 bottom-1 flex items-center justify-between gap-2 sm:gap-3">
                     <div className="flex items-center gap-2 sm:gap-3">
