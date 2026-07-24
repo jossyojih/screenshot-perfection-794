@@ -877,231 +877,233 @@ function ThreadPage() {
             id="continue-conversation"
             className="fixed inset-x-0 bottom-0 z-40 min-w-0 border-t border-glow/40 bg-void"
           >
-            <div
-              id="follow-up-settings"
-              aria-hidden={!followUpSettingsOpen}
-              className={`absolute inset-x-0 bottom-full max-h-[65vh] min-w-0 overflow-y-auto border-y border-edge bg-void p-4 shadow-2xl transition-all duration-200 ease-out lg:px-8 ${followUpSettingsOpen ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}
-            >
-              <div className="mx-auto max-w-[1100px]">
-                <div className="mb-4">
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-glow">
-                    Continue conversation
+            <div className="mx-auto max-w-[1100px]">
+              <div
+                id="follow-up-settings"
+                aria-hidden={!followUpSettingsOpen}
+                className={`absolute inset-x-0 bottom-full left-1/2 max-h-[65vh] w-full max-w-[1100px] min-w-0 -translate-x-1/2 overflow-y-auto border-y border-edge bg-void p-4 shadow-2xl transition-all duration-200 ease-out lg:px-8 ${followUpSettingsOpen ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}
+              >
+                <div className="mx-auto max-w-[1100px]">
+                  <div className="mb-4">
+                    <div className="text-[10px] font-mono uppercase tracking-widest text-glow">
+                      Continue conversation
+                    </div>
+                    <p className="mt-1 text-xs text-muted">
+                      Choose the repository scope and model for this follow-up.
+                    </p>
                   </div>
-                  <p className="mt-1 text-xs text-muted">
-                    Choose the repository scope and model for this follow-up.
-                  </p>
-                </div>
-                <div className="mb-3 min-w-0">
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-muted">
-                    Agent
+                  <div className="mb-3 min-w-0">
+                    <div className="text-[10px] font-mono uppercase tracking-wider text-muted">
+                      Agent
+                    </div>
+                    <div className="mt-1 truncate text-xs" title={j.agent}>
+                      {j.agent}
+                    </div>
+                    <div className="mt-3 text-[10px] font-mono uppercase tracking-wider text-muted">
+                      Repository scope
+                    </div>
+                    <div className="mt-1 break-words text-xs text-foreground">
+                      {selectedScopeSummary}
+                    </div>
                   </div>
-                  <div className="mt-1 truncate text-xs" title={j.agent}>
-                    {j.agent}
-                  </div>
-                  <div className="mt-3 text-[10px] font-mono uppercase tracking-wider text-muted">
-                    Repository scope
-                  </div>
-                  <div className="mt-1 break-words text-xs text-foreground">
-                    {selectedScopeSummary}
-                  </div>
-                </div>
-                <div
-                  className="grid gap-2 sm:grid-cols-3"
-                  role="group"
-                  aria-label="Repository scope"
-                >
-                  {(["keep", "auto", "manual"] as const).map((mode) => (
-                    <button
-                      type="button"
-                      key={mode}
-                      aria-pressed={followUpScope === mode}
-                      onClick={() => {
-                        setFollowUpScope(mode);
-                        if (mode === "manual" && followUpRepositories.length === 0)
-                          setFollowUpRepositories(j.resolvedRepositoryIds ?? []);
-                      }}
-                      className={`rounded-md border px-3 py-2 text-left text-xs ${followUpScope === mode ? "border-glow bg-glow-soft" : "border-edge bg-surface"}`}
-                    >
-                      {mode === "keep"
-                        ? "Keep current"
-                        : mode === "auto"
-                          ? "Auto-select again"
-                          : "Manual scope"}
-                    </button>
-                  ))}
-                </div>
-                {followUpScope === "manual" && (
-                  <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2">
-                    {projectRepositories(
-                      project.data ?? { id: "", name: "", repositories: [] },
-                    ).map((repository) => (
-                      <label
-                        key={repository.id}
-                        className="flex items-center gap-2 rounded-md border border-edge bg-surface px-3 py-2 text-xs"
+                  <div
+                    className="grid gap-2 sm:grid-cols-3"
+                    role="group"
+                    aria-label="Repository scope"
+                  >
+                    {(["keep", "auto", "manual"] as const).map((mode) => (
+                      <button
+                        type="button"
+                        key={mode}
+                        aria-pressed={followUpScope === mode}
+                        onClick={() => {
+                          setFollowUpScope(mode);
+                          if (mode === "manual" && followUpRepositories.length === 0)
+                            setFollowUpRepositories(j.resolvedRepositoryIds ?? []);
+                        }}
+                        className={`rounded-md border px-3 py-2 text-left text-xs ${followUpScope === mode ? "border-glow bg-glow-soft" : "border-edge bg-surface"}`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={followUpRepositories.includes(repository.id)}
-                          onChange={() =>
-                            setFollowUpRepositories((ids) =>
-                              ids.includes(repository.id)
-                                ? ids.filter((id) => id !== repository.id)
-                                : [...ids, repository.id],
-                            )
-                          }
-                        />
-                        <span className="min-w-0 break-words">{repository.name}</span>
-                      </label>
+                        {mode === "keep"
+                          ? "Keep current"
+                          : mode === "auto"
+                            ? "Auto-select again"
+                            : "Manual scope"}
+                      </button>
                     ))}
                   </div>
-                )}
-                {agentCapability && agentCapability.models.length > 1 && (
-                  <div className="mt-3">
-                    <label className="mb-2 block text-[10px] font-mono uppercase tracking-wider text-muted">
-                      {j.agent === "claude" ? "Claude Model" : "Model"} (optional)
-                    </label>
-                    <select
-                      value={followUpModel ?? ""}
-                      onChange={(e) => setFollowUpModel(e.target.value || undefined)}
-                      className="w-full rounded-md border border-edge bg-surface px-3 py-2 text-xs font-mono"
-                    >
-                      <option value="">Keep current ({j.model})</option>
-                      {agentCapability.models.map((m) => (
-                        <option key={m} value={m}>
-                          {m}
-                        </option>
+                  {followUpScope === "manual" && (
+                    <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2">
+                      {projectRepositories(
+                        project.data ?? { id: "", name: "", repositories: [] },
+                      ).map((repository) => (
+                        <label
+                          key={repository.id}
+                          className="flex items-center gap-2 rounded-md border border-edge bg-surface px-3 py-2 text-xs"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={followUpRepositories.includes(repository.id)}
+                            onChange={() =>
+                              setFollowUpRepositories((ids) =>
+                                ids.includes(repository.id)
+                                  ? ids.filter((id) => id !== repository.id)
+                                  : [...ids, repository.id],
+                              )
+                            }
+                          />
+                          <span className="min-w-0 break-words">{repository.name}</span>
+                        </label>
                       ))}
-                    </select>
-                  </div>
-                )}
-                {agentCapability &&
-                  agentCapability.reasoningLevels.length > 0 &&
-                  j.agent === "codex" && (
+                    </div>
+                  )}
+                  {agentCapability && agentCapability.models.length > 1 && (
                     <div className="mt-3">
                       <label className="mb-2 block text-[10px] font-mono uppercase tracking-wider text-muted">
-                        Reasoning Level (optional)
+                        {j.agent === "claude" ? "Claude Model" : "Model"} (optional)
                       </label>
                       <select
-                        value={followUpReasoning ?? ""}
-                        onChange={(e) =>
-                          setFollowUpReasoning(
-                            (e.target.value || undefined) as ReasoningLevel | undefined,
-                          )
-                        }
+                        value={followUpModel ?? ""}
+                        onChange={(e) => setFollowUpModel(e.target.value || undefined)}
                         className="w-full rounded-md border border-edge bg-surface px-3 py-2 text-xs font-mono"
                       >
-                        <option value="">Keep current ({j.reasoningLevel})</option>
-                        {agentCapability.reasoningLevels.map((r) => (
-                          <option key={r} value={r}>
-                            {r}
+                        <option value="">Keep current ({j.model})</option>
+                        {agentCapability.models.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
                           </option>
                         ))}
                       </select>
                     </div>
                   )}
-              </div>
-            </div>
-            <form
-              className="mx-auto max-w-[1100px] min-w-0"
-              onSubmit={(event) => {
-                event.preventDefault();
-                submitFollowUp();
-              }}
-            >
-              <label htmlFor="follow-up-prompt" className="sr-only">
-                Follow-up instruction
-              </label>
-              <div className="relative">
-                <textarea
-                  ref={followUpInputRef}
-                  id="follow-up-prompt"
-                  value={followUp}
-                  onChange={(event) => {
-                    setFollowUp(event.target.value);
-                    resizeFollowUpInput(event.currentTarget);
-                  }}
-                  rows={1}
-                  placeholder="Ask a follow-up…"
-                  className="block min-h-[72px] max-h-[152px] w-full min-w-0 max-w-full resize-none overflow-y-hidden rounded-none border-0 bg-void px-3 pb-12 pt-2 text-base leading-6 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
-                />
-                <div className="absolute inset-x-2 bottom-1 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <AttachmentUpload
-                      onAttachmentsChange={setFollowUpAttachments}
-                      disabled={sendFollowUp.isPending}
-                      compact
-                    />
-                    <button
-                      type="button"
-                      aria-label="Conversation options"
-                      title={`${j.agent} · ${followUpModel ?? j.model} · ${selectedScopeSummary}`}
-                      aria-expanded={followUpSettingsOpen}
-                      aria-controls="follow-up-settings"
-                      onClick={() => setFollowUpSettingsOpen((open) => !open)}
-                      className={`flex size-9 items-center justify-center rounded-md border transition-colors duration-200 ${followUpSettingsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge bg-surface text-muted"}`}
-                    >
-                      <SlidersHorizontal className="size-4" aria-hidden="true" />
-                    </button>
-                  </div>
-                  <button
-                    type="submit"
-                    title="Send follow-up"
-                    aria-label="Send follow-up"
-                    disabled={
-                      !followUp.trim() ||
-                      sendFollowUp.isPending ||
-                      (followUpScope === "manual" && followUpRepositories.length === 0)
-                    }
-                    aria-busy={sendFollowUp.isPending || followUpSubmitting.current}
-                    className="flex size-9 items-center justify-center rounded-md bg-foreground text-void transition-colors duration-200 disabled:cursor-not-allowed disabled:bg-edge"
-                  >
-                    {sendFollowUp.isPending ? (
-                      <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <SendHorizontal className="size-4" aria-hidden="true" />
+                  {agentCapability &&
+                    agentCapability.reasoningLevels.length > 0 &&
+                    j.agent === "codex" && (
+                      <div className="mt-3">
+                        <label className="mb-2 block text-[10px] font-mono uppercase tracking-wider text-muted">
+                          Reasoning Level (optional)
+                        </label>
+                        <select
+                          value={followUpReasoning ?? ""}
+                          onChange={(e) =>
+                            setFollowUpReasoning(
+                              (e.target.value || undefined) as ReasoningLevel | undefined,
+                            )
+                          }
+                          className="w-full rounded-md border border-edge bg-surface px-3 py-2 text-xs font-mono"
+                        >
+                          <option value="">Keep current ({j.reasoningLevel})</option>
+                          {agentCapability.reasoningLevels.map((r) => (
+                            <option key={r} value={r}>
+                              {r}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     )}
-                  </button>
                 </div>
               </div>
-              <span className="sr-only" role="status" aria-live="polite">
-                {sendFollowUp.isPending ? "Sending follow-up instruction" : ""}
-              </span>
-            </form>
-            {followUpAttachments.length > 0 && (
-              <div className="mx-auto max-w-[1100px] min-w-0 border-t border-edge px-3 py-2">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {followUpAttachments.map((attachment) => (
-                    <div
-                      key={attachment.id}
-                      className="relative flex items-center gap-2 rounded-lg border border-edge bg-surface p-2"
-                    >
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded bg-void/40">
-                        <FileImage className="size-4 text-muted" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-xs font-medium">{attachment.filename}</div>
-                        <div className="text-[10px] text-muted">
-                          {(attachment.sizeBytes / 1024).toFixed(1)}KB
-                        </div>
-                      </div>
+              <form
+                className="mx-auto max-w-[1100px] min-w-0"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  submitFollowUp();
+                }}
+              >
+                <label htmlFor="follow-up-prompt" className="sr-only">
+                  Follow-up instruction
+                </label>
+                <div className="relative">
+                  <textarea
+                    ref={followUpInputRef}
+                    id="follow-up-prompt"
+                    value={followUp}
+                    onChange={(event) => {
+                      setFollowUp(event.target.value);
+                      resizeFollowUpInput(event.currentTarget);
+                    }}
+                    rows={1}
+                    placeholder="Ask a follow-up…"
+                    className="block min-h-[72px] max-h-[152px] w-full min-w-0 max-w-full resize-none overflow-y-hidden rounded-none border-0 bg-void px-3 pb-12 pt-2 text-base leading-6 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-glow/60 sm:text-sm lg:rounded-t-md lg:border-x lg:border-t lg:border-edge"
+                  />
+                  <div className="absolute inset-x-2 bottom-1 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <AttachmentUpload
+                        onAttachmentsChange={setFollowUpAttachments}
+                        disabled={sendFollowUp.isPending}
+                        compact
+                      />
                       <button
                         type="button"
-                        onClick={() =>
-                          setFollowUpAttachments((current) =>
-                            current.filter((a) => a.id !== attachment.id),
-                          )
-                        }
-                        className="shrink-0 rounded p-1 hover:bg-surface/50"
-                        disabled={sendFollowUp.isPending}
-                        aria-label={`Remove ${attachment.filename}`}
+                        aria-label="Conversation options"
+                        title={`${j.agent} · ${followUpModel ?? j.model} · ${selectedScopeSummary}`}
+                        aria-expanded={followUpSettingsOpen}
+                        aria-controls="follow-up-settings"
+                        onClick={() => setFollowUpSettingsOpen((open) => !open)}
+                        className={`flex size-9 items-center justify-center rounded-md border transition-colors duration-200 ${followUpSettingsOpen ? "border-glow bg-glow-soft text-glow" : "border-edge bg-surface text-muted"}`}
                       >
-                        <X className="size-3" />
+                        <SlidersHorizontal className="size-4" aria-hidden="true" />
                       </button>
                     </div>
-                  ))}
+                    <button
+                      type="submit"
+                      title="Send follow-up"
+                      aria-label="Send follow-up"
+                      disabled={
+                        !followUp.trim() ||
+                        sendFollowUp.isPending ||
+                        (followUpScope === "manual" && followUpRepositories.length === 0)
+                      }
+                      aria-busy={sendFollowUp.isPending || followUpSubmitting.current}
+                      className="flex size-9 items-center justify-center rounded-md bg-foreground text-void transition-colors duration-200 disabled:cursor-not-allowed disabled:bg-edge"
+                    >
+                      {sendFollowUp.isPending ? (
+                        <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <SendHorizontal className="size-4" aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+                <span className="sr-only" role="status" aria-live="polite">
+                  {sendFollowUp.isPending ? "Sending follow-up instruction" : ""}
+                </span>
+              </form>
+              {followUpAttachments.length > 0 && (
+                <div className="mx-auto max-w-[1100px] min-w-0 border-t border-edge px-3 py-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {followUpAttachments.map((attachment) => (
+                      <div
+                        key={attachment.id}
+                        className="relative flex items-center gap-2 rounded-lg border border-edge bg-surface p-2"
+                      >
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded bg-void/40">
+                          <FileImage className="size-4 text-muted" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-xs font-medium">{attachment.filename}</div>
+                          <div className="text-[10px] text-muted">
+                            {(attachment.sizeBytes / 1024).toFixed(1)}KB
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFollowUpAttachments((current) =>
+                              current.filter((a) => a.id !== attachment.id),
+                            )
+                          }
+                          className="shrink-0 rounded p-1 hover:bg-surface/50"
+                          disabled={sendFollowUp.isPending}
+                          aria-label={`Remove ${attachment.filename}`}
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </section>
         )}
       </Page>
