@@ -1,10 +1,19 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Check, GitBranch, Plus, Send, Sparkles, TriangleAlert } from "lucide-react";
+import { Check, ChevronDown, GitBranch, Plus, Send, Sparkles, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { AttachmentUpload } from "@/components/AttachmentUpload";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   createJob,
   getCapabilities,
@@ -36,7 +45,8 @@ function ComposePage() {
   const [model, setModel] = useState<string | undefined>(undefined);
   const [reasoningLevel, setReasoningLevel] = useState<ReasoningLevel | undefined>(undefined);
   const [attachments, setAttachments] = useState<AttachmentMetadata[]>([]);
-  const project = projects.data?.find((p) => p.id === projectId) ?? projects.data?.[0];
+  const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
+  const project = projects.data?.find((p) => p.id === projectId);
   const selectedProjectId = project?.id;
   const repos = project ? projectRepositories(project) : [];
   const agentCapability = capabilities.data?.agents.find((a) => a.id === agent);
@@ -54,9 +64,6 @@ function ComposePage() {
     (agent === project?.defaultAgent ? project?.defaultReasoningLevel : undefined) ??
     effectiveCapability?.defaults.reasoningLevel;
   useEffect(() => {
-    if (!projectId && projects.data?.[0]) setProjectId(projects.data[0].id);
-  }, [projectId, projects.data]);
-  useEffect(() => {
     const selectedProject = projects.data?.find((item) => item.id === selectedProjectId);
     if (selectedProject) setSelected([]);
   }, [projects.data, selectedProjectId]);
@@ -65,6 +72,7 @@ function ComposePage() {
     onSuccess: (job) => navigate({ to: "/threads/$threadId", params: { threadId: job.id } }),
   });
   const projectHasNoRepos = project ? projectRepositories(project).length === 0 : false;
+  const hasValidProject = !!project;
   const dispatch = () => {
     if (!project || !effectiveAgent || projectHasNoRepos) return;
     mutation.mutate({
@@ -115,12 +123,20 @@ function ComposePage() {
           <div className="mx-auto flex max-w-[1440px] items-center gap-4">
             <div className="hidden flex-1 lg:block">
               <div className="text-xs font-medium">
-                {project?.name ?? "No project"} ·{" "}
-                {scopeMode === "auto"
-                  ? "automatic scope"
-                  : scopeMode === "all"
-                    ? `${repos.length} repositories`
-                    : `${selected.length} selected`}
+                {project ? (
+                  <>
+                    {project.name} · {repos.length}{" "}
+                    {repos.length === 1 ? "repository" : "repositories"}
+                    {" · "}
+                    {scopeMode === "auto"
+                      ? "automatic scope"
+                      : scopeMode === "all"
+                        ? "all repositories"
+                        : `${selected.length} selected`}
+                  </>
+                ) : (
+                  "No project selected"
+                )}
               </div>
               <div className="mt-1 text-[9px] font-mono uppercase tracking-widest text-muted">
                 {effectiveAgent} · {effectiveModel}
@@ -158,20 +174,60 @@ function ComposePage() {
           <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
             <aside>
               <Title>Project</Title>
-              <div className="space-y-2">
-                {projects.data.map((p) => (
+              <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
+                <PopoverTrigger asChild>
                   <button
-                    key={p.id}
-                    onClick={() => setProjectId(p.id)}
-                    className={`w-full rounded-lg border p-3 text-left ${p.id === project?.id ? "border-glow/60 bg-glow-soft" : "border-edge bg-surface"}`}
+                    className="flex w-full items-center justify-between rounded-lg border border-edge bg-surface p-3 text-left hover:border-glow/40"
+                    aria-label="Select project"
                   >
-                    <div className="text-xs font-medium">{p.name}</div>
-                    <div className="mt-1 text-[9px] font-mono text-muted">
-                      {projectRepositories(p).length} repositories
-                    </div>
+                    {project ? (
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-xs font-medium">{project.name}</div>
+                        <div className="mt-1 text-[9px] font-mono text-muted">
+                          {repos.length} {repos.length === 1 ? "repository" : "repositories"}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-muted">Select a project</div>
+                    )}
+                    <ChevronDown className="size-4 shrink-0 text-muted" />
                   </button>
-                ))}
-              </div>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-[var(--radix-popover-trigger-width)] p-0"
+                  align="start"
+                >
+                  <Command>
+                    <CommandInput placeholder="Search projects..." />
+                    <CommandList>
+                      <CommandEmpty>No projects found.</CommandEmpty>
+                      <CommandGroup>
+                        {projects.data.map((p) => (
+                          <CommandItem
+                            key={p.id}
+                            value={p.name}
+                            onSelect={() => {
+                              setProjectId(p.id);
+                              setProjectSelectorOpen(false);
+                            }}
+                          >
+                            <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-xs font-medium">{p.name}</div>
+                                <div className="mt-0.5 text-[9px] font-mono text-muted">
+                                  {projectRepositories(p).length}{" "}
+                                  {projectRepositories(p).length === 1 ? "repo" : "repos"}
+                                </div>
+                              </div>
+                              {p.id === project?.id && <Check className="size-4 text-glow" />}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </aside>
             <div className="space-y-6">
               {projectHasNoRepos && (
@@ -197,87 +253,101 @@ function ComposePage() {
               )}
               <section>
                 <Title>Repository_Scope</Title>
-                <div className="mb-4 grid gap-2 md:grid-cols-3">
-                  {(
-                    [
-                      [
-                        "auto",
-                        "Auto-select",
-                        "Recommended · plans once and uses the minimum repositories",
-                      ],
-                      [
-                        "manual",
-                        "Manual selection",
-                        "Only repositories you explicitly grant are writable",
-                      ],
-                      ["all", "All repositories", "Explicitly grant every repository for this job"],
-                    ] as const
-                  ).map(([mode, label, description]) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => setScopeMode(mode)}
-                      className={`rounded-lg border p-4 text-left ${scopeMode === mode ? "border-glow/60 bg-glow-soft" : "border-edge bg-surface"}`}
-                    >
-                      <div className="flex items-center gap-2 text-xs font-medium">
-                        {mode === "auto" && <Sparkles className="size-4 text-glow" />}
-                        {label}
-                      </div>
-                      <p className="mt-2 text-[10px] leading-relaxed text-muted">{description}</p>
-                    </button>
-                  ))}
-                </div>
-                {scopeMode === "all" && (
-                  <div className="mb-4 flex gap-3 rounded-lg border border-alert/40 bg-alert-soft p-3 text-xs text-alert">
-                    <TriangleAlert className="size-4 shrink-0" />
-                    <span>
-                      All repositories increases context usage, execution time, and cost. Choose
-                      this only when the task truly spans the whole project.
-                    </span>
-                  </div>
-                )}
-                {scopeMode === "auto" && (
+                {!hasValidProject ? (
                   <div className="rounded-lg border border-edge bg-surface p-4 text-xs text-muted">
-                    The runner performs one bounded, read-only planning pass, records why each
-                    repository is needed, then grants write access only to that resolved scope.
+                    Select a project first.
                   </div>
-                )}
-                {scopeMode === "manual" && (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {repos.map((r) => {
-                      const active = selected.includes(r.id);
-                      return (
+                ) : (
+                  <>
+                    <div className="mb-4 grid gap-2 md:grid-cols-3">
+                      {(
+                        [
+                          [
+                            "auto",
+                            "Auto-select",
+                            "Recommended · plans once and uses the minimum repositories",
+                          ],
+                          [
+                            "manual",
+                            "Manual selection",
+                            "Only repositories you explicitly grant are writable",
+                          ],
+                          [
+                            "all",
+                            "All repositories",
+                            "Explicitly grant every repository for this job",
+                          ],
+                        ] as const
+                      ).map(([mode, label, description]) => (
                         <button
-                          key={r.id}
-                          onClick={() =>
-                            setSelected((v) =>
-                              active
-                                ? v.length === 1
-                                  ? v
-                                  : v.filter((id) => id !== r.id)
-                                : [...v, r.id],
-                            )
-                          }
-                          className={`flex items-center gap-3 rounded-lg border p-3 text-left ${active ? "border-glow/60 bg-glow-soft" : "border-edge bg-surface opacity-65"}`}
+                          key={mode}
+                          type="button"
+                          onClick={() => setScopeMode(mode)}
+                          className={`rounded-lg border p-4 text-left ${scopeMode === mode ? "border-glow/60 bg-glow-soft" : "border-edge bg-surface"}`}
                         >
-                          <GitBranch className="size-4 text-glow" />
-                          <span className="min-w-0 flex-1 truncate text-xs font-medium">
-                            {r.name}
-                            <span className="mt-1 block truncate text-[9px] font-normal text-muted">
-                              {repositoryDescription(r.name)}
-                            </span>
-                          </span>
-                          <span
-                            className={`flex size-5 items-center justify-center rounded border ${active ? "border-glow bg-glow text-void" : "border-edge text-transparent"}`}
-                          >
-                            <Check className="size-3" />
-                          </span>
+                          <div className="flex items-center gap-2 text-xs font-medium">
+                            {mode === "auto" && <Sparkles className="size-4 text-glow" />}
+                            {label}
+                          </div>
+                          <p className="mt-2 text-[10px] leading-relaxed text-muted">
+                            {description}
+                          </p>
                         </button>
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
+                    {scopeMode === "all" && (
+                      <div className="mb-4 flex gap-3 rounded-lg border border-alert/40 bg-alert-soft p-3 text-xs text-alert">
+                        <TriangleAlert className="size-4 shrink-0" />
+                        <span>
+                          All repositories increases context usage, execution time, and cost. Choose
+                          this only when the task truly spans the whole project.
+                        </span>
+                      </div>
+                    )}
+                    {scopeMode === "auto" && (
+                      <div className="rounded-lg border border-edge bg-surface p-4 text-xs text-muted">
+                        The runner performs one bounded, read-only planning pass, records why each
+                        repository is needed, then grants write access only to that resolved scope.
+                      </div>
+                    )}
+                    {scopeMode === "manual" && (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {repos.map((r) => {
+                          const active = selected.includes(r.id);
+                          return (
+                            <button
+                              key={r.id}
+                              onClick={() =>
+                                setSelected((v) =>
+                                  active
+                                    ? v.length === 1
+                                      ? v
+                                      : v.filter((id) => id !== r.id)
+                                    : [...v, r.id],
+                                )
+                              }
+                              className={`flex items-center gap-3 rounded-lg border p-3 text-left ${active ? "border-glow/60 bg-glow-soft" : "border-edge bg-surface opacity-65"}`}
+                            >
+                              <GitBranch className="size-4 text-glow" />
+                              <span className="min-w-0 flex-1 truncate text-xs font-medium">
+                                {r.name}
+                                <span className="mt-1 block truncate text-[9px] font-normal text-muted">
+                                  {repositoryDescription(r.name)}
+                                </span>
+                              </span>
+                              <span
+                                className={`flex size-5 items-center justify-center rounded border ${active ? "border-glow bg-glow text-void" : "border-edge text-transparent"}`}
+                              >
+                                <Check className="size-3" />
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {repos.length === 0 && <DataState title="This project has no repositories." />}
+                  </>
                 )}
-                {repos.length === 0 && <DataState title="This project has no repositories." />}
               </section>
               <section>
                 <Title>Instruction</Title>
