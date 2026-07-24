@@ -879,7 +879,7 @@ function ThreadPage() {
           <section
             ref={composerRef}
             id="continue-conversation"
-            className="fixed inset-x-0 bottom-0 z-40 w-full min-w-0 overflow-hidden border-t border-glow/40 bg-void"
+            className="fixed inset-x-0 bottom-0 z-40 w-full min-w-0 overflow-hidden border-t border-glow/40 bg-void lg:left-64"
           >
             <div className="mx-auto max-w-[1100px]">
               <div
