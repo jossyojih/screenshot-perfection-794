@@ -16,7 +16,9 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "./NotificationBell";
+import { StatusDot, StatusPill } from "./StatusPill";
 import { useAuth } from "@/lib/auth";
+import type { JobStatus } from "@/lib/api";
 
 type NavRoute = "/" | "/search" | "/projects" | "/logs" | "/archived" | "/maintenance" | "/duna";
 
@@ -45,11 +47,13 @@ export function AppShell({
   headerRight,
   title = "Command_Center",
   bottomBar,
+  status,
 }: {
   children: ReactNode;
   headerRight?: ReactNode;
   title?: string;
   bottomBar?: ReactNode | false;
+  status?: JobStatus;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { logout } = useAuth();
@@ -60,7 +64,7 @@ export function AppShell({
 
       <div className="min-h-screen lg:pl-64">
         <header className="sticky top-0 z-30 border-b border-edge bg-void/85 backdrop-blur-xl">
-          <div className="flex h-[68px] min-w-0 items-center justify-between gap-3 px-4 lg:px-8">
+          <div className="flex h-[68px] min-w-0 items-center justify-between gap-3 px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:px-8">
             <Link to="/" className="flex min-w-0 items-center gap-2 lg:hidden">
               <span className="size-2 shrink-0 rounded-full bg-glow shadow-[var(--shadow-glow)]" />
               <span className="truncate text-xs font-mono tracking-widest uppercase text-muted">
@@ -68,12 +72,37 @@ export function AppShell({
               </span>
             </Link>
 
-            <div className="hidden min-w-0 lg:block">
-              <div className="text-[10px] font-mono uppercase tracking-[0.24em] text-muted">
-                Remote engineering
+            <div className="hidden min-w-0 lg:flex lg:flex-1 lg:items-center lg:gap-3">
+              <div className="min-w-0">
+                <div className="text-[10px] font-mono uppercase tracking-[0.24em] text-muted">
+                  Remote engineering
+                </div>
+                <h1 className="mt-1 truncate text-sm font-medium">{title}</h1>
               </div>
-              <h1 className="mt-1 truncate text-sm font-medium">{title}</h1>
+              {status && (
+                <div
+                  className="flex shrink-0 items-center gap-2 rounded-md border border-edge bg-surface/60 px-3 py-1.5"
+                  role="status"
+                  aria-live="polite"
+                  aria-label={`Thread status: ${status}`}
+                >
+                  <StatusDot status={status} />
+                  <StatusPill status={status} />
+                </div>
+              )}
             </div>
+
+            {status && (
+              <div
+                className="flex shrink-0 items-center gap-2 rounded-md border border-edge bg-surface/60 px-2.5 py-1 lg:hidden"
+                role="status"
+                aria-live="polite"
+                aria-label={`Thread status: ${status}`}
+              >
+                <StatusDot status={status} />
+                <StatusPill status={status} />
+              </div>
+            )}
 
             <div className="flex shrink-0 items-center gap-2">
               {headerRight}

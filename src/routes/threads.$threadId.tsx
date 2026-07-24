@@ -393,6 +393,7 @@ function ThreadPage() {
     <AppShell
       title={conversationTitle}
       bottomBar={canContinue ? false : undefined}
+      status={j.status}
       headerRight={
         <div className="flex items-center gap-2">
           <ArchiveThreadButton
