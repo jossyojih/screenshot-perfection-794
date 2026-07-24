@@ -1,6 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  Activity,
   Archive,
+  Command,
   FolderKanban,
   HardDrive,
   LayoutDashboard,
@@ -52,7 +54,9 @@ export function AppShell({
 
   return (
     <div className="min-h-screen w-full bg-void text-foreground">
-      <div className="min-h-screen">
+      <DesktopSidebar pathname={pathname} />
+
+      <div className="min-h-screen lg:pl-64">
         <header className="sticky top-0 z-30 border-b border-edge bg-void/85 backdrop-blur-xl">
           <div className="flex h-[68px] min-w-0 items-center justify-between gap-3 px-4 lg:px-8">
             <Link to="/" className="flex min-w-0 items-center gap-2 lg:hidden">
@@ -90,12 +94,99 @@ export function AppShell({
         </main>
 
         {bottomBar === false ? null : bottomBar ? (
-          <div className="fixed inset-x-0 bottom-0 z-40">{bottomBar}</div>
+          <div className="fixed inset-x-0 bottom-0 z-40 lg:left-64">{bottomBar}</div>
         ) : (
           <MobileBottomBar pathname={pathname} />
         )}
       </div>
     </div>
+  );
+}
+
+function DesktopSidebar({ pathname }: { pathname: string }) {
+  return (
+    <aside className="fixed inset-y-0 left-0 z-40 hidden h-dvh w-64 min-h-0 flex-col overflow-hidden border-r border-edge bg-surface/45 lg:flex">
+      <Link to="/" className="flex h-[68px] shrink-0 items-center gap-3 border-b border-edge px-6">
+        <span className="flex size-8 items-center justify-center rounded-lg border border-glow/30 bg-glow-soft text-glow">
+          <Command className="size-4" />
+        </span>
+        <span>
+          <span className="block text-xs font-semibold tracking-wide">Command Center</span>
+          <span className="mt-0.5 block text-[9px] font-mono uppercase tracking-[0.2em] text-muted">
+            Remote workspace
+          </span>
+        </span>
+      </Link>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-5">
+        <div className="mb-3 px-3 text-[9px] font-mono uppercase tracking-[0.22em] text-muted">
+          Workspace
+        </div>
+        <nav className="space-y-1">
+          {NAV_ITEMS.filter((item) => item.to !== "/duna").map((item) => {
+            const Icon = item.icon;
+            return (
+              <DesktopNavItem
+                key={item.to}
+                to={item.to}
+                label={item.label}
+                icon={<Icon className="size-4" />}
+                active={isNavItemActive(pathname, item)}
+              />
+            );
+          })}
+        </nav>
+
+        <Link
+          to="/compose"
+          className="mt-6 flex h-11 items-center justify-center gap-2 rounded-lg bg-glow text-xs font-bold uppercase tracking-widest text-void shadow-[var(--shadow-glow)] transition-transform hover:-translate-y-0.5"
+        >
+          <Plus className="size-4" />
+          New instruction
+        </Link>
+      </div>
+
+      <div className="shrink-0 border-t border-edge p-4">
+        <div className="rounded-lg border border-edge bg-void/60 p-3">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted">
+              <Activity className="size-3.5 text-glow" /> System
+            </span>
+            <span className="size-1.5 rounded-full bg-glow shadow-[var(--shadow-glow-soft)]" />
+          </div>
+          <div className="mt-2 text-xs font-medium">EC2 runner online</div>
+          <div className="mt-1 text-[9px] font-mono text-muted">eu-west-2 · 3 agents ready</div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function DesktopNavItem({
+  to,
+  label,
+  icon,
+  active,
+}: {
+  to: NavRoute;
+  label: string;
+  icon: ReactNode;
+  active: boolean;
+}) {
+  return (
+    <Link
+      to={to}
+      aria-current={active ? "page" : undefined}
+      className={`flex h-10 items-center gap-3 rounded-lg px-3 text-xs transition-colors ${
+        active
+          ? "border border-glow/25 bg-glow-soft text-foreground"
+          : "border border-transparent text-muted hover:bg-surface hover:text-foreground"
+      }`}
+    >
+      <span className={active ? "text-glow" : "text-muted"}>{icon}</span>
+      <span>{label}</span>
+      {active && <span className="ml-auto size-1 rounded-full bg-glow" />}
+    </Link>
   );
 }
 
