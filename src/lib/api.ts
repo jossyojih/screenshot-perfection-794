@@ -412,6 +412,59 @@ export interface Capabilities {
   agents: AgentCapability[];
   defaults: { agent: Agent };
 }
+export interface ThreadSearchFilters {
+  query?: string;
+  projectId?: string;
+  status?: JobStatus;
+  agent?: Agent;
+  repositoryId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  includeArchived?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+export interface ThreadSearchResult {
+  threadId: string;
+  projectId: string;
+  title: string;
+  latestStatus: JobStatus;
+  agent: Agent;
+  model: string;
+  runCount: number;
+  repositoryIds: string[];
+  updatedAt: string;
+  createdAt: string;
+  archived: boolean;
+}
+export interface ThreadSearchResponse {
+  results: ThreadSearchResult[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+export async function searchThreads(
+  filters: ThreadSearchFilters,
+  signal?: AbortSignal,
+): Promise<ThreadSearchResponse> {
+  const params = new URLSearchParams();
+  if (filters.query) params.set("query", filters.query);
+  if (filters.projectId) params.set("projectId", filters.projectId);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.agent) params.set("agent", filters.agent);
+  if (filters.repositoryId) params.set("repositoryId", filters.repositoryId);
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.includeArchived) params.set("includeArchived", "true");
+  if (filters.page) params.set("page", String(filters.page));
+  if (filters.pageSize) params.set("pageSize", String(filters.pageSize));
+  const qs = params.toString();
+  const response = await authenticatedFetch(`/threads/search${qs ? `?${qs}` : ""}`, { signal });
+  if (!response.ok) throw await responseError(response);
+  return response.json() as Promise<ThreadSearchResponse>;
+}
+
 export async function getCapabilities() {
   return request<Capabilities>("/capabilities");
 }

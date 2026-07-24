@@ -7,6 +7,7 @@ import {
   HardDrive,
   LayoutDashboard,
   Plus,
+  Search,
   TerminalSquare,
   LogOut,
   Waves,
@@ -17,7 +18,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "./NotificationBell";
 import { useAuth } from "@/lib/auth";
 
-type NavRoute = "/" | "/projects" | "/logs" | "/archived" | "/maintenance" | "/duna";
+type NavRoute = "/" | "/search" | "/projects" | "/logs" | "/archived" | "/maintenance" | "/duna";
 
 const NAV_ITEMS: {
   to: NavRoute;
@@ -27,6 +28,7 @@ const NAV_ITEMS: {
   exact?: boolean;
 }[] = [
   { to: "/", label: "Overview", mobileLabel: "FEED", icon: LayoutDashboard, exact: true },
+  { to: "/search", label: "Search", mobileLabel: "SRCH", icon: Search },
   { to: "/archived", label: "Archived threads", mobileLabel: "ARCH", icon: Archive },
   { to: "/projects", label: "Projects", mobileLabel: "PROJ", icon: FolderKanban },
   { to: "/logs", label: "Agent logs", mobileLabel: "LOGS", icon: TerminalSquare },
@@ -202,7 +204,7 @@ function MobileBottomBar({ pathname }: { pathname: string }) {
         <Plus className="size-5" />
       </Link>
 
-      <nav className="grid grid-cols-6">
+      <nav className="grid grid-cols-7">
         {NAV_ITEMS.map((item) => (
           <MobileNavItem
             key={item.to}

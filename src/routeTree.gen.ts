@@ -16,6 +16,7 @@ import { Route as DunaRouteImport } from './routes/duna'
 import { Route as LogsRouteImport } from './routes/logs'
 import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 import { Route as ThreadsThreadIdRouteImport } from './routes/threads.$threadId'
 
@@ -54,6 +55,11 @@ const ProjectsRoute = ProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
   id: '/$projectId',
   path: '/$projectId',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/logs': typeof LogsRoute
   '/maintenance': typeof MaintenanceRoute
   '/projects': typeof ProjectsRouteWithChildren
+  '/search': typeof SearchRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/threads/$threadId': typeof ThreadsThreadIdRoute
 }
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/logs': typeof LogsRoute
   '/maintenance': typeof MaintenanceRoute
   '/projects': typeof ProjectsRouteWithChildren
+  '/search': typeof SearchRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/threads/$threadId': typeof ThreadsThreadIdRoute
 }
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/logs': typeof LogsRoute
   '/maintenance': typeof MaintenanceRoute
   '/projects': typeof ProjectsRouteWithChildren
+  '/search': typeof SearchRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/threads/$threadId': typeof ThreadsThreadIdRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/logs'
     | '/maintenance'
     | '/projects'
+    | '/search'
     | '/projects/$projectId'
     | '/threads/$threadId'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/logs'
     | '/maintenance'
     | '/projects'
+    | '/search'
     | '/projects/$projectId'
     | '/threads/$threadId'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/logs'
     | '/maintenance'
     | '/projects'
+    | '/search'
     | '/projects/$projectId'
     | '/threads/$threadId'
   fileRoutesById: FileRoutesById
@@ -143,6 +155,7 @@ export interface RootRouteChildren {
   LogsRoute: typeof LogsRoute
   MaintenanceRoute: typeof MaintenanceRoute
   ProjectsRoute: typeof ProjectsRouteWithChildren
+  SearchRoute: typeof SearchRoute
   ThreadsThreadIdRoute: typeof ThreadsThreadIdRoute
 }
 
@@ -197,6 +210,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/projects/$projectId': {
       id: '/projects/$projectId'
       path: '/$projectId'
@@ -234,6 +254,7 @@ const rootRouteChildren: RootRouteChildren = {
   LogsRoute: LogsRoute,
   MaintenanceRoute: MaintenanceRoute,
   ProjectsRoute: ProjectsRouteWithChildren,
+  SearchRoute: SearchRoute,
   ThreadsThreadIdRoute: ThreadsThreadIdRoute,
 }
 export const routeTree = rootRouteImport
