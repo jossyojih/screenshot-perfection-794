@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, GitBranch, Send, Sparkles, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { AttachmentUpload } from "@/components/AttachmentUpload";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import {
   createJob,
@@ -10,6 +11,7 @@ import {
   getProjects,
   projectRepositories,
   type Agent,
+  type AttachmentMetadata,
   type ReasoningLevel,
   type ScopeMode,
 } from "@/lib/api";
@@ -33,6 +35,7 @@ function ComposePage() {
   const [agent, setAgent] = useState<Agent | undefined>(undefined);
   const [model, setModel] = useState<string | undefined>(undefined);
   const [reasoningLevel, setReasoningLevel] = useState<ReasoningLevel | undefined>(undefined);
+  const [attachments, setAttachments] = useState<AttachmentMetadata[]>([]);
   const project = projects.data?.find((p) => p.id === projectId) ?? projects.data?.[0];
   const selectedProjectId = project?.id;
   const repos = project ? projectRepositories(project) : [];
@@ -71,6 +74,7 @@ function ComposePage() {
       agent: effectiveAgent,
       model: effectiveModel,
       reasoningLevel: effectiveReasoning,
+      attachments: attachments.length ? attachments : undefined,
     });
   };
   if (projects.isPending || capabilities.isPending)
@@ -261,6 +265,12 @@ function ComposePage() {
                   placeholder="Describe the outcome you want the agent to achieve…"
                   className="w-full resize-none rounded-xl border border-edge bg-surface p-4 text-sm leading-relaxed focus:border-glow/50 focus:outline-none"
                 />
+                <div className="mt-3">
+                  <AttachmentUpload
+                    onAttachmentsChange={setAttachments}
+                    disabled={mutation.isPending}
+                  />
+                </div>
               </section>
               <section>
                 <Title>Agent and Model</Title>

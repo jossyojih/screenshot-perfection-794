@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { ArchiveThreadButton } from "@/components/ArchiveThreadButton";
+import { AttachmentUpload } from "@/components/AttachmentUpload";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
 import {
@@ -36,6 +37,7 @@ import {
   type JobEvent,
   type ReasoningLevel,
   authenticatedFetch,
+  type AttachmentMetadata,
   type Deployment,
 } from "@/lib/api";
 export const Route = createFileRoute("/threads/$threadId")({
@@ -206,6 +208,7 @@ function ThreadPage() {
   const [threadDetailsOpen, setThreadDetailsOpen] = useState(false);
   const [earlierRunsOpen, setEarlierRunsOpen] = useState(false);
   const [expandedEarlierRun, setExpandedEarlierRun] = useState<string>();
+  const [followUpAttachments, setFollowUpAttachments] = useState<AttachmentMetadata[]>([]);
   const [followUpRequestId, setFollowUpRequestId] = useState(() => crypto.randomUUID());
   const followUpSubmitting = useRef(false);
   const scopeDecisionSubmitting = useRef(false);
@@ -267,6 +270,7 @@ function ThreadPage() {
       repositories: string[];
       model?: string;
       reasoningLevel?: ReasoningLevel;
+      attachments?: AttachmentMetadata[];
     }) =>
       continueJob(
         threadId,
@@ -281,6 +285,7 @@ function ThreadPage() {
         input.model || input.reasoningLevel
           ? { model: input.model, reasoningLevel: input.reasoningLevel }
           : undefined,
+        input.attachments,
       ),
     onSuccess: (created) => {
       setFollowUp("");
@@ -356,6 +361,7 @@ function ThreadPage() {
       repositories: [...followUpRepositories],
       model: followUpModel,
       reasoningLevel: followUpReasoning,
+      attachments: followUpAttachments.length ? followUpAttachments : undefined,
     });
   };
   const activityId = `job-activity-${j.id}`;
@@ -924,6 +930,12 @@ function ThreadPage() {
               <label htmlFor="follow-up-prompt" className="sr-only">
                 Follow-up instruction
               </label>
+              <div className="border-b border-edge px-3 py-2">
+                <AttachmentUpload
+                  onAttachmentsChange={setFollowUpAttachments}
+                  disabled={sendFollowUp.isPending}
+                />
+              </div>
               <div className="relative">
                 <textarea
                   ref={followUpInputRef}
