@@ -377,6 +377,11 @@ function ProjectDetail() {
                               {r.defaultBranch ?? "default branch"}
                               {r.status ? ` · ${r.status}` : ""}
                             </div>
+                            {r.url && (
+                              <div className="mt-1 truncate text-[9px] font-mono text-muted/70">
+                                {r.url}
+                              </div>
+                            )}
                           </div>
                           {r.url && (
                             <a
