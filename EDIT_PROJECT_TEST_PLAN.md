@@ -3,6 +3,7 @@
 ## Test Cases
 
 ### 1. Opening and Closing Dialog
+
 - [ ] Click "Edit project" button in Project Details section
 - [ ] Dialog opens with current project name and description pre-filled
 - [ ] Click "Cancel" button - dialog closes without changes
@@ -11,6 +12,7 @@
 - [ ] After closing, reopen dialog - fields are reset to current project values
 
 ### 2. Validation Tests
+
 - [ ] Clear project name field - "Save" button is disabled
 - [ ] Enter only whitespace in name field - "Save" button is disabled
 - [ ] Enter valid name - "Save" button is enabled
@@ -18,6 +20,7 @@
 - [ ] Clear validation error by typing valid name
 
 ### 3. Editing Name
+
 - [ ] Change project name to "Updated Project Name"
 - [ ] Click "Save"
 - [ ] Loading state appears: "Saving changes..." with spinner
@@ -27,6 +30,7 @@
 - [ ] Navigate to Projects list - project card shows updated name
 
 ### 4. Editing Description
+
 - [ ] Open edit dialog
 - [ ] Change description to "Updated project description"
 - [ ] Click "Save"
@@ -35,6 +39,7 @@
 - [ ] Project Details section shows updated description
 
 ### 5. Removing Description
+
 - [ ] Open edit dialog with project that has a description
 - [ ] Clear description field completely
 - [ ] Click "Save"
@@ -43,6 +48,7 @@
 - [ ] Project Details section no longer shows description label/text
 
 ### 6. No Changes Scenario
+
 - [ ] Open edit dialog
 - [ ] Don't make any changes
 - [ ] "Save" button is disabled (no changes detected)
@@ -50,6 +56,7 @@
 - [ ] "Save" button is disabled again
 
 ### 7. API Failure Test
+
 - [ ] Disconnect network or use invalid project ID
 - [ ] Open edit dialog and make changes
 - [ ] Click "Save"
@@ -58,13 +65,15 @@
 - [ ] Can retry by making changes and clicking "Save" again
 
 ### 8. Whitespace Trimming
-- [ ] Enter "  Project Name  " (with leading/trailing spaces)
-- [ ] Enter "  Description  " (with leading/trailing spaces)
+
+- [ ] Enter " Project Name " (with leading/trailing spaces)
+- [ ] Enter " Description " (with leading/trailing spaces)
 - [ ] Save
 - [ ] Verify API receives trimmed values
 - [ ] Verify display shows trimmed values
 
 ### 9. Concurrent Mutation Prevention
+
 - [ ] Open edit dialog
 - [ ] Make changes
 - [ ] Click "Save"
@@ -74,6 +83,7 @@
 - [ ] Fields are disabled during save
 
 ### 10. Mobile Responsiveness
+
 - [ ] Test on mobile viewport (375px width)
 - [ ] Dialog fits within viewport
 - [ ] No horizontal overflow
@@ -82,6 +92,7 @@
 - [ ] Text is readable
 
 ### 11. Data Persistence
+
 - [ ] Edit project name
 - [ ] Save successfully
 - [ ] Refresh browser
@@ -92,12 +103,14 @@
 - [ ] Verify threads still associated with project
 
 ### 12. Maximum Length Validation
+
 - [ ] Enter 200 characters in name field - all accepted
 - [ ] Try to enter 201st character - prevented (maxLength)
 - [ ] Enter 1000 characters in description - all accepted
 - [ ] Try to enter 1001st character - prevented (maxLength)
 
 ### 13. Keyboard Navigation
+
 - [ ] Open dialog using Enter/Space on "Edit project" button
 - [ ] Tab through form fields in order
 - [ ] Make changes
@@ -106,6 +119,7 @@
 - [ ] Press Escape - dialog closes
 
 ### 14. Query Cache Update
+
 - [ ] Edit project name
 - [ ] Save successfully
 - [ ] Verify Projects list is updated (check queryClient invalidation)
@@ -113,4 +127,5 @@
 - [ ] No unnecessary network requests
 
 ## Success Criteria
+
 All test cases pass without errors or unexpected behavior.
