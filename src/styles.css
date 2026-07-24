@@ -20,6 +20,15 @@
   --color-background: var(--void);
   --color-border: var(--edge);
 
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--foreground);
+  --color-accent: var(--surface-2);
+  --color-accent-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted);
+  --color-input: var(--edge);
+  --color-ring: var(--glow);
+  --color-destructive: var(--danger);
+
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
