@@ -107,14 +107,32 @@ function ProjectDetail() {
               {p.description ?? `Coordinating ${repos.length} repositories.`}
             </p>
           </div>
-          <Link
-            to="/compose"
-            search={{ projectId: p.id, threadId: undefined }}
-            className="flex h-10 items-center justify-center gap-2 rounded-lg bg-glow px-4 text-xs font-bold uppercase tracking-widest text-void"
-          >
-            <Plus className="size-4" /> New instruction
-          </Link>
+          {repos.length > 0 ? (
+            <Link
+              to="/compose"
+              search={{ projectId: p.id, threadId: undefined }}
+              className="flex h-10 items-center justify-center gap-2 rounded-lg bg-glow px-4 text-xs font-bold uppercase tracking-widest text-void"
+            >
+              <Plus className="size-4" /> New instruction
+            </Link>
+          ) : (
+            <span className="flex h-10 cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-edge px-4 text-xs font-bold uppercase tracking-widest text-muted">
+              <Plus className="size-4" /> New instruction
+            </span>
+          )}
         </div>
+        {repos.length === 0 && (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-alert/40 bg-alert-soft p-5">
+            <TriangleAlert className="mt-0.5 size-5 shrink-0 text-alert" />
+            <div>
+              <p className="text-sm font-medium text-alert">Setup required</p>
+              <p className="mt-1 text-xs text-muted">
+                No repositories are connected. Add at least one repository to start dispatching
+                tasks.
+              </p>
+            </div>
+          </div>
+        )}
         <div className="space-y-6">
           <section className="rounded-xl border border-edge bg-surface p-4 lg:p-5">
             <Heading title="Project Settings" meta="Backend enforced" />

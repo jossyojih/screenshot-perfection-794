@@ -473,7 +473,13 @@ function ProjectCard({ project, threads }: { project: Project; threads: Conversa
         <div className="min-w-0">
           <div className="break-words text-base font-medium leading-6">{project.name}</div>
           <div className="mt-1 break-words text-xs font-mono leading-5 text-muted">
-            {projectRepositories(project).length} repos · {running} running · {attention} attention
+            {projectRepositories(project).length === 0 ? (
+              <span className="text-alert">Setup required</span>
+            ) : (
+              `${projectRepositories(project).length} repos`
+            )}
+            {" · "}
+            {running} running · {attention} attention
           </div>
           <div className="mt-2 break-words text-xs font-mono leading-5 text-muted">
             Last activity {lastActivity ? formatTime(lastActivity) : "—"}

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Check, GitBranch, Send, Sparkles, TriangleAlert } from "lucide-react";
+import { Check, GitBranch, Plus, Send, Sparkles, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { AttachmentUpload } from "@/components/AttachmentUpload";
@@ -64,8 +64,9 @@ function ComposePage() {
     mutationFn: createJob,
     onSuccess: (job) => navigate({ to: "/threads/$threadId", params: { threadId: job.id } }),
   });
+  const projectHasNoRepos = project ? projectRepositories(project).length === 0 : false;
   const dispatch = () => {
-    if (!project || !effectiveAgent) return;
+    if (!project || !effectiveAgent || projectHasNoRepos) return;
     mutation.mutate({
       projectId: project.id,
       prompt: prompt.trim(),
@@ -131,6 +132,7 @@ function ComposePage() {
               disabled={
                 !project ||
                 !prompt.trim() ||
+                projectHasNoRepos ||
                 (scopeMode === "manual" && selected.length === 0) ||
                 mutation.isPending
               }
@@ -172,6 +174,27 @@ function ComposePage() {
               </div>
             </aside>
             <div className="space-y-6">
+              {projectHasNoRepos && (
+                <div className="flex flex-col gap-3 rounded-xl border border-alert/40 bg-alert-soft p-5">
+                  <div className="flex items-start gap-3 text-sm text-alert">
+                    <TriangleAlert className="mt-0.5 size-5 shrink-0" />
+                    <div>
+                      <p className="font-medium">Setup required</p>
+                      <p className="mt-1 text-xs text-muted">
+                        This project has no repositories connected. Add at least one repository
+                        before dispatching a task.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    to="/projects/$projectId"
+                    params={{ projectId: project!.id }}
+                    className="flex h-9 w-fit items-center gap-2 rounded-lg border border-edge bg-surface px-4 text-xs font-medium hover:border-glow/40"
+                  >
+                    <Plus className="size-3.5" /> Add repository
+                  </Link>
+                </div>
+              )}
               <section>
                 <Title>Repository_Scope</Title>
                 <div className="mb-4 grid gap-2 md:grid-cols-3">

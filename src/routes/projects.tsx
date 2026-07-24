@@ -66,7 +66,11 @@ function ProjectsList() {
                         {p.name}
                       </div>
                       <div className="mt-1.5 text-[10px] font-mono text-muted">
-                        {repos.length} repo{repos.length === 1 ? "" : "s"}
+                        {repos.length === 0 ? (
+                          <span className="text-alert">Setup required</span>
+                        ) : (
+                          `${repos.length} repo${repos.length === 1 ? "" : "s"}`
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
