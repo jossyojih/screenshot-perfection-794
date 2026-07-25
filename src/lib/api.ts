@@ -270,7 +270,12 @@ export interface CreateProjectInput {
   defaultModel?: string;
   promotionPolicy?: PromotionPolicy;
   repositoryUrls?: Array<{ url: string; name?: string }>;
-  githubRepositories?: Array<{ owner: string; repo: string; name?: string; defaultBranch?: string }>;
+  githubRepositories?: Array<{
+    owner: string;
+    repo: string;
+    name?: string;
+    defaultBranch?: string;
+  }>;
 }
 export interface AddRepositoryInput {
   url?: string;
@@ -579,7 +584,9 @@ export async function getGitHubRepositories(params?: {
   if (params?.perPage) qs.set("perPage", String(params.perPage));
   if (params?.search) qs.set("search", params.search);
   if (params?.projectId) qs.set("projectId", params.projectId);
-  return request<GitHubRepositoriesResponse>(`/github/repositories${qs.toString() ? `?${qs}` : ""}`);
+  return request<GitHubRepositoriesResponse>(
+    `/github/repositories${qs.toString() ? `?${qs}` : ""}`,
+  );
 }
 export const projectRepositories = (project: Project) => {
   const raw = project.repositories ?? (project as unknown as { repos?: unknown[] }).repos ?? [];

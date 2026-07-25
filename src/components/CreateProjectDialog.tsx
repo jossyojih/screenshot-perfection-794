@@ -18,7 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createProject, errorMessage, getGitHubStatus, type GitHubRepository, type PromotionPolicy } from "@/lib/api";
+import {
+  createProject,
+  errorMessage,
+  getGitHubStatus,
+  type GitHubRepository,
+  type PromotionPolicy,
+} from "@/lib/api";
 import { GitHubRepositoryPicker } from "@/components/GitHubRepositoryPicker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -31,7 +37,9 @@ export function CreateProjectDialog() {
   const [description, setDescription] = useState("");
   const [promotionPolicy, setPromotionPolicy] = useState<PromotionPolicy>("review_required");
   const [repoUrls, setRepoUrls] = useState<Array<{ url: string; name: string }>>([]);
-  const [githubRepos, setGithubRepos] = useState<Array<{ owner: string; repo: string; name?: string; defaultBranch: string }>>([]);
+  const [githubRepos, setGithubRepos] = useState<
+    Array<{ owner: string; repo: string; name?: string; defaultBranch: string }>
+  >([]);
   const [newUrl, setNewUrl] = useState("");
   const [newName, setNewName] = useState("");
   const [urlError, setUrlError] = useState("");
@@ -105,7 +113,10 @@ export function CreateProjectDialog() {
   };
 
   const handleGitHubSelect = (repo: GitHubRepository) => {
-    setGithubRepos([...githubRepos, { owner: repo.owner, repo: repo.name, defaultBranch: repo.defaultBranch }]);
+    setGithubRepos([
+      ...githubRepos,
+      { owner: repo.owner, repo: repo.name, defaultBranch: repo.defaultBranch },
+    ]);
   };
 
   const handleGitHubDeselect = (owner: string, repo: string) => {
@@ -200,7 +211,9 @@ export function CreateProjectDialog() {
                         key={i}
                         className="flex items-center gap-2 rounded-md border border-edge bg-void/50 px-3 py-2 text-xs"
                       >
-                        <span className="min-w-0 flex-1 truncate font-mono">{repo.owner}/{repo.repo}</span>
+                        <span className="min-w-0 flex-1 truncate font-mono">
+                          {repo.owner}/{repo.repo}
+                        </span>
                         <span className="shrink-0 text-muted">{repo.defaultBranch}</span>
                         <button
                           type="button"

@@ -1,7 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { ChevronDown, ExternalLink, GitBranch, Plus, Search, TriangleAlert } from "lucide-react";
+import {
+  ChevronDown,
+  Copy,
+  ExternalLink,
+  GitBranch,
+  Github,
+  Plus,
+  Search,
+  TriangleAlert,
+} from "lucide-react";
 import { AddRepositoryDialog } from "@/components/AddRepositoryDialog";
 import { EditProjectDialog } from "@/components/EditProjectDialog";
 import { AppShell } from "@/components/AppShell";
@@ -370,29 +379,51 @@ function ProjectDetail() {
                         <span className="flex size-9 items-center justify-center rounded-lg border border-glow/25 bg-glow-soft text-glow">
                           <GitBranch className="size-4" />
                         </span>
-                        <div className="mt-4 flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-medium">{r.name}</div>
-                            <div className="mt-1 text-[9px] font-mono text-muted">
-                              {r.defaultBranch ?? "default branch"}
-                              {r.status ? ` · ${r.status}` : ""}
-                            </div>
-                            {r.url && (
-                              <div className="mt-1 truncate text-[9px] font-mono text-muted/70">
-                                {r.url}
-                              </div>
-                            )}
+                        <div className="mt-4">
+                          <div className="truncate text-sm font-medium">{r.name}</div>
+                          <div className="mt-1 text-[9px] font-mono text-muted">
+                            {r.defaultBranch ?? "default branch"}
+                            {r.status ? ` · ${r.status}` : ""}
                           </div>
-                          {r.url && (
-                            <a
-                              href={r.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex size-7 shrink-0 items-center justify-center rounded-md border border-edge text-muted hover:border-glow hover:bg-glow-soft hover:text-glow"
-                              aria-label={`Open ${r.name} repository`}
-                            >
-                              <ExternalLink className="size-3.5" />
-                            </a>
+                          {r.url ? (
+                            <div className="mt-2 flex items-center gap-2">
+                              <Github className="size-3 shrink-0 text-muted" />
+                              <a
+                                href={r.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="min-w-0 flex-1 truncate text-[9px] font-mono text-muted hover:text-glow hover:underline"
+                                title={r.url}
+                              >
+                                {r.url}
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(r.url!);
+                                }}
+                                className="flex size-6 shrink-0 items-center justify-center rounded border border-edge text-muted hover:border-glow hover:bg-glow-soft hover:text-glow"
+                                aria-label="Copy URL"
+                                title="Copy URL"
+                              >
+                                <Copy className="size-3" />
+                              </button>
+                              <a
+                                href={r.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex size-6 shrink-0 items-center justify-center rounded border border-edge text-muted hover:border-glow hover:bg-glow-soft hover:text-glow"
+                                aria-label={`Open ${r.name} repository`}
+                                title="Open in GitHub"
+                              >
+                                <ExternalLink className="size-3" />
+                              </a>
+                            </div>
+                          ) : (
+                            <div className="mt-2 flex items-center gap-2 text-[9px] text-muted/50">
+                              <Github className="size-3 shrink-0" />
+                              <span>URL unavailable</span>
+                            </div>
                           )}
                         </div>
                       </div>

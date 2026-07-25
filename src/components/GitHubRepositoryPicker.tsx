@@ -12,7 +12,12 @@ interface Props {
   onDeselect: (owner: string, repo: string) => void;
 }
 
-export function GitHubRepositoryPicker({ projectId, selectedRepositories, onSelect, onDeselect }: Props) {
+export function GitHubRepositoryPicker({
+  projectId,
+  selectedRepositories,
+  onSelect,
+  onDeselect,
+}: Props) {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -106,7 +111,9 @@ export function GitHubRepositoryPicker({ projectId, selectedRepositories, onSele
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="truncate font-mono text-xs font-medium">{repo.fullName}</span>
+                      <span className="truncate font-mono text-xs font-medium">
+                        {repo.fullName}
+                      </span>
                       {repo.private ? (
                         <Lock className="size-3 shrink-0 text-muted" />
                       ) : (

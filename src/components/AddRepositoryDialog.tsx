@@ -28,7 +28,11 @@ export function AddRepositoryDialog({ projectId }: Props) {
   const [name, setName] = useState("");
   const [urlError, setUrlError] = useState("");
   const [repoSource, setRepoSource] = useState<"url" | "github">("url");
-  const [selectedGithubRepo, setSelectedGithubRepo] = useState<{ owner: string; repo: string; defaultBranch: string } | null>(null);
+  const [selectedGithubRepo, setSelectedGithubRepo] = useState<{
+    owner: string;
+    repo: string;
+    defaultBranch: string;
+  } | null>(null);
   const queryClient = useQueryClient();
 
   const { data: githubStatus } = useQuery({
@@ -94,14 +98,22 @@ export function AddRepositoryDialog({ projectId }: Props) {
   };
 
   const handleGitHubSelect = (repo: GitHubRepository) => {
-    setSelectedGithubRepo({ owner: repo.owner, repo: repo.name, defaultBranch: repo.defaultBranch });
+    setSelectedGithubRepo({
+      owner: repo.owner,
+      repo: repo.name,
+      defaultBranch: repo.defaultBranch,
+    });
   };
 
   const handleGitHubDeselect = () => {
     setSelectedGithubRepo(null);
   };
 
-  const canSubmit = ((repoSource === "url" && url.trim().length > 0) || (repoSource === "github" && selectedGithubRepo)) && !mutation.isPending && !mutation.isSuccess;
+  const canSubmit =
+    ((repoSource === "url" && url.trim().length > 0) ||
+      (repoSource === "github" && selectedGithubRepo)) &&
+    !mutation.isPending &&
+    !mutation.isSuccess;
 
   return (
     <Dialog
