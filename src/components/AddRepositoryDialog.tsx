@@ -43,10 +43,11 @@ export function AddRepositoryDialog({ projectId }: Props) {
   });
 
   useEffect(() => {
-    if (open && githubStatus?.configured && repoSource === "url") {
+    if (open && githubStatus?.configured) {
       setRepoSource("github");
     }
-  }, [open, githubStatus?.configured, repoSource]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const mutation = useMutation({
     mutationFn: () => {

@@ -336,7 +336,9 @@ function ProjectDetail() {
               <AccordionTrigger className="px-4 lg:px-5">
                 <div className="flex w-full items-center justify-between pr-3">
                   <Heading title="Project Details" meta={p.description ? "Configured" : ""} />
-                  <EditProjectDialog project={p} />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <EditProjectDialog project={p} />
+                  </div>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-4 lg:px-5">
@@ -366,7 +368,9 @@ function ProjectDetail() {
               <AccordionTrigger className="px-4 lg:px-5">
                 <div className="flex w-full items-center justify-between pr-3">
                   <Heading title="Repositories" meta={`${repos.length} connected`} />
-                  <AddRepositoryDialog projectId={p.id} />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <AddRepositoryDialog projectId={p.id} />
+                  </div>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-4 lg:px-5">
