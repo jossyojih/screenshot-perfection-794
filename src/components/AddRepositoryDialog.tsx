@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useCallback, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Loader2, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
 import {
   Dialog,
@@ -11,7 +11,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { addRepository, errorMessage } from "@/lib/api";
+import { addRepository, errorMessage, getGitHubStatus, type GitHubRepository } from "@/lib/api";
+import { GitHubRepositoryPicker } from "@/components/GitHubRepositoryPicker";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const GITHUB_URL_PATTERN =
   /^(https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?|git@github\.com:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?)$/;
@@ -25,10 +27,34 @@ export function AddRepositoryDialog({ projectId }: Props) {
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");
   const [urlError, setUrlError] = useState("");
+  const [repoSource, setRepoSource] = useState<"url" | "github">("url");
+  const [selectedGithubRepo, setSelectedGithubRepo] = useState<{ owner: string; repo: string; defaultBranch: string } | null>(null);
   const queryClient = useQueryClient();
 
+  const { data: githubStatus } = useQuery({
+    queryKey: ["github-status"],
+    queryFn: getGitHubStatus,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (open && githubStatus?.configured && repoSource === "url") {
+      setRepoSource("github");
+    }
+  }, [open, githubStatus?.configured, repoSource]);
+
   const mutation = useMutation({
-    mutationFn: () => addRepository(projectId, { url: url.trim(), name: name.trim() || undefined }),
+    mutationFn: () => {
+      if (selectedGithubRepo) {
+        return addRepository(projectId, {
+          owner: selectedGithubRepo.owner,
+          repo: selectedGithubRepo.repo,
+          defaultBranch: selectedGithubRepo.defaultBranch,
+          name: name.trim() || undefined,
+        });
+      }
+      return addRepository(projectId, { url: url.trim(), name: name.trim() || undefined });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project", projectId] });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
@@ -39,8 +65,10 @@ export function AddRepositoryDialog({ projectId }: Props) {
     setUrl("");
     setName("");
     setUrlError("");
+    setSelectedGithubRepo(null);
+    setRepoSource(githubStatus?.configured ? "github" : "url");
     mutation.reset();
-  }, [mutation]);
+  }, [mutation, githubStatus?.configured]);
 
   const validate = () => {
     const trimmed = url.trim();
@@ -60,11 +88,20 @@ export function AddRepositoryDialog({ projectId }: Props) {
   };
 
   const handleSubmit = () => {
-    if (!validate()) return;
-    mutation.mutate();
+    if (selectedGithubRepo || (repoSource === "url" && validate())) {
+      mutation.mutate();
+    }
   };
 
-  const canSubmit = url.trim().length > 0 && !mutation.isPending && !mutation.isSuccess;
+  const handleGitHubSelect = (repo: GitHubRepository) => {
+    setSelectedGithubRepo({ owner: repo.owner, repo: repo.name, defaultBranch: repo.defaultBranch });
+  };
+
+  const handleGitHubDeselect = () => {
+    setSelectedGithubRepo(null);
+  };
+
+  const canSubmit = ((repoSource === "url" && url.trim().length > 0) || (repoSource === "github" && selectedGithubRepo)) && !mutation.isPending && !mutation.isSuccess;
 
   return (
     <Dialog
@@ -80,39 +117,60 @@ export function AddRepositoryDialog({ projectId }: Props) {
           Add repository
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add repository</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="repo-url">GitHub repository URL</Label>
-            <Input
-              id="repo-url"
-              value={url}
-              onChange={(e) => {
-                setUrl(e.target.value);
-                setUrlError("");
-              }}
-              placeholder="https://github.com/owner/repo"
-              disabled={mutation.isPending || mutation.isSuccess}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleSubmit();
-                }
-              }}
-            />
-            {urlError && <p className="text-xs text-destructive">{urlError}</p>}
-          </div>
+          <Tabs value={repoSource} onValueChange={(v) => setRepoSource(v as "url" | "github")}>
+            {githubStatus?.configured && (
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="github">Choose from GitHub</TabsTrigger>
+                <TabsTrigger value="url">Enter URL</TabsTrigger>
+              </TabsList>
+            )}
+
+            <TabsContent value="github" className="mt-3 space-y-3">
+              <GitHubRepositoryPicker
+                projectId={projectId}
+                selectedRepositories={selectedGithubRepo ? [selectedGithubRepo] : []}
+                onSelect={handleGitHubSelect}
+                onDeselect={handleGitHubDeselect}
+              />
+            </TabsContent>
+
+            <TabsContent value="url" className="mt-3 space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="repo-url">GitHub repository URL</Label>
+                <Input
+                  id="repo-url"
+                  value={url}
+                  onChange={(e) => {
+                    setUrl(e.target.value);
+                    setUrlError("");
+                  }}
+                  placeholder="https://github.com/owner/repo"
+                  disabled={mutation.isPending || mutation.isSuccess}
+                  autoFocus={repoSource === "url"}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSubmit();
+                    }
+                  }}
+                />
+                {urlError && <p className="text-xs text-destructive">{urlError}</p>}
+              </div>
+            </TabsContent>
+          </Tabs>
+
           <div className="space-y-2">
             <Label htmlFor="repo-name">Display name (optional)</Label>
             <Input
               id="repo-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Inferred from URL if blank"
+              placeholder="Inferred if blank"
               maxLength={200}
               disabled={mutation.isPending || mutation.isSuccess}
             />

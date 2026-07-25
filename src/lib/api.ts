@@ -270,10 +270,29 @@ export interface CreateProjectInput {
   defaultModel?: string;
   promotionPolicy?: PromotionPolicy;
   repositoryUrls?: Array<{ url: string; name?: string }>;
+  githubRepositories?: Array<{ owner: string; repo: string; name?: string; defaultBranch?: string }>;
 }
 export interface AddRepositoryInput {
-  url: string;
+  url?: string;
   name?: string;
+  owner?: string;
+  repo?: string;
+  defaultBranch?: string;
+}
+export interface GitHubRepository {
+  id: number;
+  fullName: string;
+  owner: string;
+  name: string;
+  private: boolean;
+  defaultBranch: string;
+  alreadyConnected: boolean;
+}
+export interface GitHubRepositoriesResponse {
+  repositories: GitHubRepository[];
+  totalCount: number;
+  page: number;
+  perPage: number;
 }
 export interface AddRepositoryResult {
   id: string;
@@ -545,6 +564,22 @@ export async function updateProjectAgentDefaults(
     method: "PUT",
     body: JSON.stringify(input),
   });
+}
+export async function getGitHubStatus() {
+  return request<{ configured: boolean }>("/github/status");
+}
+export async function getGitHubRepositories(params?: {
+  page?: number;
+  perPage?: number;
+  search?: string;
+  projectId?: string;
+}) {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.perPage) qs.set("perPage", String(params.perPage));
+  if (params?.search) qs.set("search", params.search);
+  if (params?.projectId) qs.set("projectId", params.projectId);
+  return request<GitHubRepositoriesResponse>(`/github/repositories${qs.toString() ? `?${qs}` : ""}`);
 }
 export const projectRepositories = (project: Project) => {
   const raw = project.repositories ?? (project as unknown as { repos?: unknown[] }).repos ?? [];
