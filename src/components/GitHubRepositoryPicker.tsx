@@ -57,6 +57,10 @@ export function GitHubRepositoryPicker({
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search repositories..."
           className="pl-9"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.preventDefault();
+          }}
+          onPaste={(e) => e.stopPropagation()}
         />
       </div>
 

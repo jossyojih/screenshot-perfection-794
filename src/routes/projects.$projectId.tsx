@@ -12,6 +12,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { AddRepositoryDialog } from "@/components/AddRepositoryDialog";
+import { DisconnectRepositoryDialog } from "@/components/DisconnectRepositoryDialog";
 import { EditProjectDialog } from "@/components/EditProjectDialog";
 import { AppShell } from "@/components/AppShell";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
@@ -380,9 +381,12 @@ function ProjectDetail() {
                   <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
                     {repos.map((r) => (
                       <div key={r.id} className="rounded-xl border border-edge bg-void p-4">
-                        <span className="flex size-9 items-center justify-center rounded-lg border border-glow/25 bg-glow-soft text-glow">
-                          <GitBranch className="size-4" />
-                        </span>
+                        <div className="flex items-start justify-between">
+                          <span className="flex size-9 items-center justify-center rounded-lg border border-glow/25 bg-glow-soft text-glow">
+                            <GitBranch className="size-4" />
+                          </span>
+                          <DisconnectRepositoryDialog projectId={p.id} repository={r} />
+                        </div>
                         <div className="mt-4">
                           <div className="truncate text-sm font-medium">{r.name}</div>
                           <div className="mt-1 text-[9px] font-mono text-muted">

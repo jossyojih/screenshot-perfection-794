@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Loader2, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
 import {
@@ -33,6 +33,7 @@ export function AddRepositoryDialog({ projectId }: Props) {
     repo: string;
     defaultBranch: string;
   } | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: githubStatus, isLoading: isLoadingGitHubStatus } = useQuery({
@@ -42,24 +43,22 @@ export function AddRepositoryDialog({ projectId }: Props) {
     staleTime: 60000,
   });
 
-  useEffect(() => {
-    if (open && githubStatus?.configured) {
-      setRepoSource("github");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
   const mutation = useMutation({
     mutationFn: () => {
-      if (selectedGithubRepo) {
+      if (repoSource === "github" && selectedGithubRepo) {
         return addRepository(projectId, {
+          mode: "github",
           owner: selectedGithubRepo.owner,
           repo: selectedGithubRepo.repo,
           defaultBranch: selectedGithubRepo.defaultBranch,
           name: name.trim() || undefined,
         });
       }
-      return addRepository(projectId, { url: url.trim(), name: name.trim() || undefined });
+      return addRepository(projectId, {
+        mode: "url",
+        url: url.trim(),
+        name: name.trim() || undefined,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project", projectId] });
@@ -72,9 +71,10 @@ export function AddRepositoryDialog({ projectId }: Props) {
     setName("");
     setUrlError("");
     setSelectedGithubRepo(null);
-    setRepoSource(githubStatus?.configured ? "github" : "url");
+    setConfirmed(false);
+    setRepoSource("url");
     mutation.reset();
-  }, [mutation, githubStatus?.configured]);
+  }, [mutation]);
 
   const validate = () => {
     const trimmed = url.trim();
@@ -94,7 +94,10 @@ export function AddRepositoryDialog({ projectId }: Props) {
   };
 
   const handleSubmit = () => {
-    if (selectedGithubRepo || (repoSource === "url" && validate())) {
+    if (!confirmed) return;
+    if (repoSource === "github" && selectedGithubRepo) {
+      mutation.mutate();
+    } else if (repoSource === "url" && validate()) {
       mutation.mutate();
     }
   };
@@ -105,17 +108,26 @@ export function AddRepositoryDialog({ projectId }: Props) {
       repo: repo.name,
       defaultBranch: repo.defaultBranch,
     });
+    setConfirmed(false);
   };
 
   const handleGitHubDeselect = () => {
     setSelectedGithubRepo(null);
+    setConfirmed(false);
   };
 
-  const canSubmit =
-    ((repoSource === "url" && url.trim().length > 0) ||
-      (repoSource === "github" && selectedGithubRepo)) &&
-    !mutation.isPending &&
-    !mutation.isSuccess;
+  const handleTabChange = (value: string) => {
+    setRepoSource(value as "url" | "github");
+    setSelectedGithubRepo(null);
+    setConfirmed(false);
+    setUrlError("");
+  };
+
+  const hasSelection =
+    (repoSource === "url" && url.trim().length > 0) ||
+    (repoSource === "github" && selectedGithubRepo !== null);
+
+  const canSubmit = hasSelection && confirmed && !mutation.isPending && !mutation.isSuccess;
 
   return (
     <Dialog
@@ -142,7 +154,7 @@ export function AddRepositoryDialog({ projectId }: Props) {
               Checking GitHub configuration...
             </div>
           ) : (
-            <Tabs value={repoSource} onValueChange={(v) => setRepoSource(v as "url" | "github")}>
+            <Tabs value={repoSource} onValueChange={handleTabChange}>
               {githubStatus?.configured && (
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="github">Choose from GitHub</TabsTrigger>
@@ -170,6 +182,7 @@ export function AddRepositoryDialog({ projectId }: Props) {
                     onChange={(e) => {
                       setUrl(e.target.value);
                       setUrlError("");
+                      setConfirmed(false);
                     }}
                     placeholder="https://github.com/owner/repo"
                     disabled={mutation.isPending || mutation.isSuccess}
@@ -177,8 +190,10 @@ export function AddRepositoryDialog({ projectId }: Props) {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        handleSubmit();
                       }
+                    }}
+                    onPaste={(e) => {
+                      e.stopPropagation();
                     }}
                   />
                   {urlError && <p className="text-xs text-destructive">{urlError}</p>}
@@ -198,6 +213,25 @@ export function AddRepositoryDialog({ projectId }: Props) {
               disabled={mutation.isPending || mutation.isSuccess}
             />
           </div>
+
+          {hasSelection && !mutation.isPending && !mutation.isSuccess && (
+            <div className="rounded-md border border-edge bg-void/50 p-3">
+              <p className="mb-2 text-xs text-muted-foreground">
+                {repoSource === "github" && selectedGithubRepo
+                  ? `Selected: ${selectedGithubRepo.owner}/${selectedGithubRepo.repo}`
+                  : `URL: ${url.trim()}`}
+              </p>
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={confirmed}
+                  onChange={(e) => setConfirmed(e.target.checked)}
+                  className="size-4 rounded border-edge"
+                />
+                <span>I confirm this is the correct repository to add</span>
+              </label>
+            </div>
+          )}
 
           {mutation.isPending && (
             <div className="flex items-center gap-2 rounded-md border border-edge bg-void/50 p-3 text-xs">

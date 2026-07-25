@@ -278,6 +278,7 @@ export interface CreateProjectInput {
   }>;
 }
 export interface AddRepositoryInput {
+  mode?: "url" | "github";
   url?: string;
   name?: string;
   owner?: string;
@@ -332,6 +333,21 @@ export async function addRepository(projectId: string, input: AddRepositoryInput
       body: JSON.stringify(input),
     }),
     ["repository", "data"],
+  );
+}
+export interface DisconnectRepositoryResult {
+  disconnected: boolean;
+  repositoryId: string;
+  cloneRemoved: boolean;
+}
+export async function disconnectRepository(
+  projectId: string,
+  repositoryId: string,
+  confirmName: string,
+) {
+  return request<DisconnectRepositoryResult>(
+    `/projects/${encodeURIComponent(projectId)}/repositories/${encodeURIComponent(repositoryId)}`,
+    { method: "DELETE", body: JSON.stringify({ confirmName }) },
   );
 }
 export async function getProjects() {
