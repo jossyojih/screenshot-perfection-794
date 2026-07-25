@@ -35,10 +35,11 @@ export function AddRepositoryDialog({ projectId }: Props) {
   } | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: githubStatus } = useQuery({
+  const { data: githubStatus, isLoading: isLoadingGitHubStatus } = useQuery({
     queryKey: ["github-status"],
     queryFn: getGitHubStatus,
     retry: false,
+    staleTime: 60000,
   });
 
   useEffect(() => {
@@ -129,52 +130,61 @@ export function AddRepositoryDialog({ projectId }: Props) {
           Add repository
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add repository</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
-          <Tabs value={repoSource} onValueChange={(v) => setRepoSource(v as "url" | "github")}>
-            {githubStatus?.configured && (
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="github">Choose from GitHub</TabsTrigger>
-                <TabsTrigger value="url">Enter URL</TabsTrigger>
-              </TabsList>
-            )}
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
+          {isLoadingGitHubStatus ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted">
+              <Loader2 className="size-4 animate-spin" />
+              Checking GitHub configuration...
+            </div>
+          ) : (
+            <Tabs value={repoSource} onValueChange={(v) => setRepoSource(v as "url" | "github")}>
+              {githubStatus?.configured && (
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="github">Choose from GitHub</TabsTrigger>
+                  <TabsTrigger value="url">Enter URL</TabsTrigger>
+                </TabsList>
+              )}
 
-            <TabsContent value="github" className="mt-3 space-y-3">
-              <GitHubRepositoryPicker
-                projectId={projectId}
-                selectedRepositories={selectedGithubRepo ? [selectedGithubRepo] : []}
-                onSelect={handleGitHubSelect}
-                onDeselect={handleGitHubDeselect}
-              />
-            </TabsContent>
+              {githubStatus?.configured && (
+                <TabsContent value="github" className="mt-3 space-y-3">
+                  <GitHubRepositoryPicker
+                    projectId={projectId}
+                    selectedRepositories={selectedGithubRepo ? [selectedGithubRepo] : []}
+                    onSelect={handleGitHubSelect}
+                    onDeselect={handleGitHubDeselect}
+                  />
+                </TabsContent>
+              )}
 
-            <TabsContent value="url" className="mt-3 space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="repo-url">GitHub repository URL</Label>
-                <Input
-                  id="repo-url"
-                  value={url}
-                  onChange={(e) => {
-                    setUrl(e.target.value);
-                    setUrlError("");
-                  }}
-                  placeholder="https://github.com/owner/repo"
-                  disabled={mutation.isPending || mutation.isSuccess}
-                  autoFocus={repoSource === "url"}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleSubmit();
-                    }
-                  }}
-                />
-                {urlError && <p className="text-xs text-destructive">{urlError}</p>}
-              </div>
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="url" className="mt-3 space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="repo-url">GitHub repository URL</Label>
+                  <Input
+                    id="repo-url"
+                    value={url}
+                    onChange={(e) => {
+                      setUrl(e.target.value);
+                      setUrlError("");
+                    }}
+                    placeholder="https://github.com/owner/repo"
+                    disabled={mutation.isPending || mutation.isSuccess}
+                    autoFocus={repoSource === "url"}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSubmit();
+                      }
+                    }}
+                  />
+                  {urlError && <p className="text-xs text-destructive">{urlError}</p>}
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="repo-name">Display name (optional)</Label>

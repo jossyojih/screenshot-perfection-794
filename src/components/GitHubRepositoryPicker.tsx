@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Loader2, AlertCircle, Lock, Globe, CheckCircle2 } from "lucide-react";
+import { Search, Loader2, AlertCircle, Lock, Globe, CheckCircle2, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { getGitHubRepositories, type GitHubRepository } from "@/lib/api";
+import { getGitHubRepositories, errorMessage, type GitHubRepository } from "@/lib/api";
 
 interface Props {
   projectId?: string;
@@ -31,7 +31,7 @@ export function GitHubRepositoryPicker({
     setPage(1);
   }, [debouncedSearch]);
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["github-repositories", page, debouncedSearch, projectId],
     queryFn: () => getGitHubRepositories({ page, perPage: 30, search: debouncedSearch, projectId }),
     retry: false,
@@ -68,9 +68,21 @@ export function GitHubRepositoryPicker({
       )}
 
       {isError && (
-        <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-          <AlertCircle className="size-4 shrink-0" />
-          <span>{error instanceof Error ? error.message : "Failed to load repositories"}</span>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+            <AlertCircle className="size-4 shrink-0" />
+            <span>{errorMessage(error)}</span>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="w-full"
+          >
+            <RotateCcw className="mr-1.5 size-3.5" />
+            Retry
+          </Button>
         </div>
       )}
 
