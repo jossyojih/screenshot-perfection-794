@@ -33,11 +33,9 @@ export interface Project {
   defaultModel?: string;
   defaultReasoningLevel?: ReasoningLevel;
 }
-export type EnvironmentName = "development" | "test" | "production";
 export interface EnvironmentVariableMetadata {
   id: string;
   key: string;
-  environment: EnvironmentName;
   scope: "project" | "repository";
   projectId: string;
   repositoryId?: string;
@@ -375,25 +373,17 @@ export async function getProject(id: string) {
     "data",
   ]);
 }
-function environmentVariablesPath(
-  projectId: string,
-  environment: EnvironmentName,
-  repositoryId?: string,
-) {
+function environmentVariablesPath(projectId: string, repositoryId?: string) {
   const project = `/projects/${encodeURIComponent(projectId)}`;
   return repositoryId
-    ? `${project}/repositories/${encodeURIComponent(repositoryId)}/environments/${environment}/variables`
-    : `${project}/environments/${environment}/variables`;
+    ? `${project}/repositories/${encodeURIComponent(repositoryId)}/variables`
+    : `${project}/variables`;
 }
-export async function getEnvironmentVariables(
-  projectId: string,
-  environment: EnvironmentName,
-  repositoryId?: string,
-) {
+export async function getEnvironmentVariables(projectId: string, repositoryId?: string) {
   const response = await request<{
     variables?: EnvironmentVariableMetadata[];
     suggestions?: string[];
-  }>(environmentVariablesPath(projectId, environment, repositoryId));
+  }>(environmentVariablesPath(projectId, repositoryId));
   return { variables: response.variables ?? [], suggestions: response.suggestions ?? [] };
 }
 export interface EnvironmentVariableInput {
@@ -404,26 +394,21 @@ export interface EnvironmentVariableInput {
 }
 export async function createEnvironmentVariable(
   projectId: string,
-  environment: EnvironmentName,
   input: EnvironmentVariableInput,
   repositoryId?: string,
 ) {
-  return request<EnvironmentVariableMetadata>(
-    environmentVariablesPath(projectId, environment, repositoryId),
-    {
-      method: "POST",
-      body: JSON.stringify(input),
-    },
-  );
+  return request<EnvironmentVariableMetadata>(environmentVariablesPath(projectId, repositoryId), {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 export async function replaceEnvironmentVariable(
   projectId: string,
-  environment: EnvironmentName,
   input: EnvironmentVariableInput,
   repositoryId?: string,
 ) {
   return request<EnvironmentVariableMetadata>(
-    `${environmentVariablesPath(projectId, environment, repositoryId)}/${encodeURIComponent(input.key)}`,
+    `${environmentVariablesPath(projectId, repositoryId)}/${encodeURIComponent(input.key)}`,
     {
       method: "PUT",
       body: JSON.stringify(input),
@@ -432,19 +417,17 @@ export async function replaceEnvironmentVariable(
 }
 export async function deleteEnvironmentVariable(
   projectId: string,
-  environment: EnvironmentName,
   key: string,
   repositoryId?: string,
 ) {
   const response = await authenticatedFetch(
-    `${environmentVariablesPath(projectId, environment, repositoryId)}/${encodeURIComponent(key)}`,
+    `${environmentVariablesPath(projectId, repositoryId)}/${encodeURIComponent(key)}`,
     { method: "DELETE" },
   );
   if (!response.ok) throw await responseError(response);
 }
 export async function importEnvironmentVariables(
   projectId: string,
-  environment: EnvironmentName,
   input: {
     content: string;
     confirm: boolean;
@@ -456,7 +439,7 @@ export async function importEnvironmentVariables(
   return request<{
     variables: Array<EnvironmentVariableMetadata | { key: string }>;
     count: number;
-  }>(`${environmentVariablesPath(projectId, environment, repositoryId)}/import`, {
+  }>(`${environmentVariablesPath(projectId, repositoryId)}/import`, {
     method: "POST",
     body: JSON.stringify(input),
   });

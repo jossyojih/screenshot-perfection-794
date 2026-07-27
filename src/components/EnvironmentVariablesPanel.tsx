@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createEnvironmentVariable,
   deleteEnvironmentVariable,
@@ -13,16 +12,10 @@ import {
   getEnvironmentVariables,
   importEnvironmentVariables,
   replaceEnvironmentVariable,
-  type EnvironmentName,
   type EnvironmentVariableInput,
   type Project,
 } from "@/lib/api";
 
-const environments: Array<{ id: EnvironmentName; label: string }> = [
-  { id: "development", label: "Development" },
-  { id: "test", label: "Test" },
-  { id: "production", label: "Production" },
-];
 const empty: EnvironmentVariableInput = {
   key: "",
   value: "",
@@ -32,21 +25,20 @@ const empty: EnvironmentVariableInput = {
 
 export function EnvironmentVariablesPanel({ project }: { project: Project }) {
   const queryClient = useQueryClient();
-  const [environment, setEnvironment] = useState<EnvironmentName>("development");
   const [repositoryId, setRepositoryId] = useState("");
   const [form, setForm] = useState(empty);
   const [replace, setReplace] = useState(false);
   const [importText, setImportText] = useState("");
   const [preview, setPreview] = useState<string[]>([]);
-  const queryKey = ["environment-variables", project.id, repositoryId || "project", environment];
+  const queryKey = ["environment-variables", project.id, repositoryId || "project"];
   const variables = useQuery({
     queryKey,
-    queryFn: () => getEnvironmentVariables(project.id, environment, repositoryId || undefined),
+    queryFn: () => getEnvironmentVariables(project.id, repositoryId || undefined),
   });
   useEffect(() => {
     setPreview([]);
     setImportText("");
-  }, [environment, repositoryId]);
+  }, [repositoryId]);
   const refresh = async () => {
     setForm(empty);
     setReplace(false);
@@ -58,7 +50,6 @@ export function EnvironmentVariablesPanel({ project }: { project: Project }) {
     mutationFn: () =>
       (replace ? replaceEnvironmentVariable : createEnvironmentVariable)(
         project.id,
-        environment,
         form,
         repositoryId || undefined,
       ),
@@ -66,14 +57,13 @@ export function EnvironmentVariablesPanel({ project }: { project: Project }) {
   });
   const remove = useMutation({
     mutationFn: (key: string) =>
-      deleteEnvironmentVariable(project.id, environment, key, repositoryId || undefined),
+      deleteEnvironmentVariable(project.id, key, repositoryId || undefined),
     onSuccess: refresh,
   });
   const importer = useMutation({
     mutationFn: (confirm: boolean) =>
       importEnvironmentVariables(
         project.id,
-        environment,
         {
           content: importText,
           confirm,
@@ -108,7 +98,7 @@ export function EnvironmentVariablesPanel({ project }: { project: Project }) {
         </div>
       </div>
 
-      <div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-[minmax(0,16rem)_1fr]">
+      <div className="mt-4 max-w-md min-w-0">
         <label className="min-w-0 text-xs">
           Scope
           <select
@@ -124,23 +114,6 @@ export function EnvironmentVariablesPanel({ project }: { project: Project }) {
             ))}
           </select>
         </label>
-        <Tabs
-          value={environment}
-          onValueChange={(value) => setEnvironment(value as EnvironmentName)}
-          className="min-w-0 self-end"
-        >
-          <TabsList className="grid h-auto w-full grid-cols-3 overflow-hidden">
-            {environments.map((item) => (
-              <TabsTrigger
-                className="min-w-0 px-1.5 text-[10px] sm:text-xs"
-                key={item.id}
-                value={item.id}
-              >
-                {item.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
       </div>
 
       {variables.isPending ? (
