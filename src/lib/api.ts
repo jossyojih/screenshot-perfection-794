@@ -33,6 +33,22 @@ export interface Project {
   defaultModel?: string;
   defaultReasoningLevel?: ReasoningLevel;
 }
+export type EnvironmentName = "development" | "test" | "production";
+export interface EnvironmentVariableMetadata {
+  id: string;
+  key: string;
+  environment: EnvironmentName;
+  scope: "project" | "repository";
+  projectId: string;
+  repositoryId?: string;
+  classification: "secret" | "public";
+  allowAgentAccess: boolean;
+  inherited: boolean;
+  overridden: boolean;
+  masked: true;
+  createdAt: string;
+  updatedAt: string;
+}
 export interface RepositoryResult {
   repositoryId?: string;
   repositoryName?: string;
@@ -358,6 +374,92 @@ export async function getProject(id: string) {
     "project",
     "data",
   ]);
+}
+function environmentVariablesPath(
+  projectId: string,
+  environment: EnvironmentName,
+  repositoryId?: string,
+) {
+  const project = `/projects/${encodeURIComponent(projectId)}`;
+  return repositoryId
+    ? `${project}/repositories/${encodeURIComponent(repositoryId)}/environments/${environment}/variables`
+    : `${project}/environments/${environment}/variables`;
+}
+export async function getEnvironmentVariables(
+  projectId: string,
+  environment: EnvironmentName,
+  repositoryId?: string,
+) {
+  const response = await request<{
+    variables?: EnvironmentVariableMetadata[];
+    suggestions?: string[];
+  }>(environmentVariablesPath(projectId, environment, repositoryId));
+  return { variables: response.variables ?? [], suggestions: response.suggestions ?? [] };
+}
+export interface EnvironmentVariableInput {
+  key: string;
+  value: string;
+  classification: "secret" | "public";
+  allowAgentAccess: boolean;
+}
+export async function createEnvironmentVariable(
+  projectId: string,
+  environment: EnvironmentName,
+  input: EnvironmentVariableInput,
+  repositoryId?: string,
+) {
+  return request<EnvironmentVariableMetadata>(
+    environmentVariablesPath(projectId, environment, repositoryId),
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+export async function replaceEnvironmentVariable(
+  projectId: string,
+  environment: EnvironmentName,
+  input: EnvironmentVariableInput,
+  repositoryId?: string,
+) {
+  return request<EnvironmentVariableMetadata>(
+    `${environmentVariablesPath(projectId, environment, repositoryId)}/${encodeURIComponent(input.key)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(input),
+    },
+  );
+}
+export async function deleteEnvironmentVariable(
+  projectId: string,
+  environment: EnvironmentName,
+  key: string,
+  repositoryId?: string,
+) {
+  const response = await authenticatedFetch(
+    `${environmentVariablesPath(projectId, environment, repositoryId)}/${encodeURIComponent(key)}`,
+    { method: "DELETE" },
+  );
+  if (!response.ok) throw await responseError(response);
+}
+export async function importEnvironmentVariables(
+  projectId: string,
+  environment: EnvironmentName,
+  input: {
+    content: string;
+    confirm: boolean;
+    classification?: "secret" | "public";
+    allowAgentAccess?: boolean;
+  },
+  repositoryId?: string,
+) {
+  return request<{
+    variables: Array<EnvironmentVariableMetadata | { key: string }>;
+    count: number;
+  }>(`${environmentVariablesPath(projectId, environment, repositoryId)}/import`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 export async function updateProjectPromotionPolicy(id: string, promotionPolicy: PromotionPolicy) {
   return request<Project>(`/projects/${encodeURIComponent(id)}/promotion-policy`, {

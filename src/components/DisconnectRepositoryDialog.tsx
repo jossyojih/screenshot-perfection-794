@@ -73,15 +73,16 @@ export function DisconnectRepositoryDialog({ projectId, repository }: Props) {
             <div>
               <p className="font-medium">This will remove the repository from this project.</p>
               <p className="mt-1 text-muted-foreground">
-                The remote GitHub repository will not be deleted or modified. Historical threads
-                and audit records are preserved.
+                The remote GitHub repository will not be deleted or modified. Historical threads and
+                audit records are preserved.
               </p>
             </div>
           </div>
 
           <div className="space-y-1.5">
             <p className="text-xs text-muted-foreground">
-              Repository: <span className="font-mono font-medium text-foreground">{expectedName}</span>
+              Repository:{" "}
+              <span className="font-mono font-medium text-foreground">{expectedName}</span>
             </p>
             {repository.url && (
               <p className="text-xs text-muted-foreground">

@@ -14,6 +14,7 @@ import {
 import { AddRepositoryDialog } from "@/components/AddRepositoryDialog";
 import { DisconnectRepositoryDialog } from "@/components/DisconnectRepositoryDialog";
 import { EditProjectDialog } from "@/components/EditProjectDialog";
+import { EnvironmentVariablesPanel } from "@/components/EnvironmentVariablesPanel";
 import { AppShell } from "@/components/AppShell";
 import { DataState, ErrorState, LoadingState } from "@/components/DataState";
 import { StatusDot, StatusPill } from "@/components/StatusPill";
@@ -628,6 +629,7 @@ function ProjectDetail() {
                     Saving policy…
                   </p>
                 )}
+                <EnvironmentVariablesPanel project={p} />
               </AccordionContent>
             </AccordionItem>
           </Accordion>
